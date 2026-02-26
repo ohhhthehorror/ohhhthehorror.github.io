@@ -1159,9 +1159,9 @@
         // Moon Phase Calculation and Display
         function calculateMoonPhase() {
             // Use wttr.in API which provides accurate moon phase data AND location
-            // Add timeout to prevent hanging
+            // Keep timeout short since it's often slow - ipapi.co will be our fallback
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout - fail fast
             
             fetch('https://wttr.in/?format=j1', { signal: controller.signal })
                 .then(response => {
@@ -2466,7 +2466,13 @@
                     console.log('Total people in space:', astrosData.number);
                 }
             } catch (error) {
-                console.log('Could not fetch spacecraft data:', error.message);
+                console.log('Astronaut API unavailable - showing ISS with default data');
+                // Make ISS visible with placeholder crew even if API fails
+                const iss = terra.spacecraft?.find(s => s.name === 'ISS');
+                if (iss) {
+                    iss.visible = true;
+                    iss.visitors = ['API Unavailable - Check back later'];
+                }
             }
         }
 
