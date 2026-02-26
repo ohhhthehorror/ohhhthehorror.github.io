@@ -1,0 +1,3390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Wallpaper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            background: #000;
+            color: #ff4444;
+        }
+
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .overlay > * {
+            pointer-events: auto;
+        }
+
+        .panel {
+            background: rgba(40, 0, 0, 0.85);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.2);
+            z-index: 10;
+            position: relative;
+        }
+
+        .top-left {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            min-width: 250px;
+        }
+
+        .top-right {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            text-align: right;
+        }
+
+        #time-display {
+            font-size: 32px;
+            font-weight: bold;
+            color: #ff4444;
+            text-shadow: 0 0 10px #ff4444;
+            margin-bottom: 5px;
+            min-height: 40px;
+        }
+
+        #date-display {
+            font-size: 14px;
+            color: #ff6666;
+            margin-bottom: 8px;
+        }
+
+        #utc-display {
+            font-size: 12px;
+            color: #cc4444;
+            opacity: 0.8;
+        }
+
+        #location-display {
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .location-label {
+            color: #ff6666;
+            font-size: 10px;
+            opacity: 0.7;
+        }
+
+        #moon-phase {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 68, 68, 0.2);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        #moon-phase-canvas {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: #111;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+            display: none;
+            order: 2;
+        }
+
+        #moon-phase-text {
+            font-size: 10px;
+            color: #ff6666;
+            line-height: 1.4;
+            text-align: right;
+            order: 1;
+        }
+
+        #solar-system {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #news-feed {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            width: 280px;
+            max-height: 45%;
+            background: rgba(40, 0, 0, 0.85);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            border-radius: 5px;
+            padding: 15px;
+            overflow-y: auto;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.2);
+            z-index: 10;
+        }
+        
+        #launch-container {
+            display: none;
+            transition: max-height 0.3s ease;
+        }
+        
+        #news-container {
+            display: none;
+            transition: max-height 0.3s ease;
+        }
+
+        #launch-calendar {
+            position: absolute;
+            left: 20px;
+            bottom: 20px;
+            width: 320px;
+            max-height: 45%;
+            background: rgba(40, 0, 0, 0.85);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            border-radius: 5px;
+            padding: 15px;
+            overflow-y: auto;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.2);
+            z-index: 10;
+        }
+
+        #launch-calendar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #launch-calendar::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        #launch-calendar::-webkit-scrollbar-thumb {
+            background: rgba(255, 68, 68, 0.5);
+            border-radius: 3px;
+        }
+
+        #launch-calendar h3 {
+            color: #ff4444;
+            font-size: 14px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid rgba(255, 68, 68, 0.3);
+            padding-bottom: 8px;
+        }
+
+        .launch-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 68, 68, 0.1);
+            color: #ff6666;
+            font-size: 11px;
+            line-height: 1.5;
+            cursor: pointer;
+            transition: background 0.2s;
+            padding: 10px;
+            margin-left: -10px;
+            margin-right: -10px;
+            border-radius: 3px;
+        }
+
+        .launch-item:hover {
+            background: rgba(255, 68, 68, 0.1);
+        }
+
+        .launch-item:last-child {
+            border-bottom: none;
+        }
+
+        .launch-date {
+            font-size: 12px;
+            color: #ff4444;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .launch-mission {
+            color: #ff6666;
+            margin-bottom: 3px;
+        }
+
+        .launch-provider {
+            font-size: 9px;
+            color: #cc4444;
+            opacity: 0.8;
+        }
+
+        .launch-status {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            margin-top: 5px;
+        }
+
+        .status-go {
+            background: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+        }
+
+        .status-tbd {
+            background: rgba(255, 165, 0, 0.2);
+            color: #ffaa00;
+            border: 1px solid rgba(255, 165, 0, 0.3);
+        }
+
+        .status-hold {
+            background: rgba(255, 0, 0, 0.2);
+            color: #ff4444;
+            border: 1px solid rgba(255, 0, 0, 0.3);
+        }
+
+        #moon-tooltip {
+            position: absolute;
+            background: rgba(40, 0, 0, 0.95);
+            border: 1px solid rgba(255, 68, 68, 0.5);
+            border-radius: 5px;
+            padding: 8px 12px;
+            color: #ff6666;
+            font-size: 11px;
+            pointer-events: none;
+            z-index: 1001;
+            display: none;
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.3);
+        }
+
+        #mars-window {
+            position: relative;
+            width: 100%;
+            background: rgba(60, 0, 0, 0.5);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            border-radius: 5px;
+            padding: 12px;
+            margin-bottom: 0;
+            box-shadow: 0 0 10px rgba(255, 68, 68, 0.1);
+        }
+
+        #mars-status {
+            font-size: 11px;
+            color: #ff6666;
+            margin-bottom: 8px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #mars-state {
+            color: #ff4444;
+        }
+
+        #mars-state.open {
+            color: #44ff44;
+        }
+
+        #mars-countdown-label {
+            font-size: 11px;
+            color: #ff6666;
+            margin-bottom: 8px;
+        }
+
+        #mars-time-display {
+            color: #ff4444;
+            font-weight: bold;
+        }
+
+        #mars-progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+            --progress: 0%;
+        }
+
+        #mars-progress-bar::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: var(--progress);
+            background: linear-gradient(90deg, #ff4444, #ff6666);
+            transition: width 0.3s ease;
+        }
+
+        #mars-progress-bar.open::before {
+            background: linear-gradient(90deg, #44ff44, #66ff66);
+        }
+
+        .progress-item {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .progress-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .progress-label {
+            color: #ff4444;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 50px;
+            flex-shrink: 0;
+        }
+
+        .progress-bar-bg {
+            flex: 1;
+            height: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4444, #ff6666);
+            border-radius: 3px;
+            transition: width 0.1s linear;
+        }
+
+        #mars-window .progress-label {
+            font-size: 10px;
+            margin-bottom: 8px;
+        }
+
+        #mars-window .progress-bar-bg {
+            height: 8px;
+        }
+
+        #time-progress-bars {
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 68, 68, 0.2);
+        }
+
+        #zoom-indicator {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(40, 0, 0, 0.9);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            border-radius: 3px;
+            padding: 5px 12px;
+            color: #ff6666;
+            font-size: 11px;
+            font-family: Courier New, monospace;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        #zoom-indicator.visible {
+            opacity: 1;
+        }
+
+        #reset-button {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ff6666;
+            font-size: 10px;
+            font-family: Courier New, monospace;
+            cursor: pointer;
+            opacity: 0.5;
+            transition: opacity 0.2s ease;
+            z-index: 100;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        #reset-button:hover {
+            opacity: 1;
+        }
+
+        #news-feed::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #news-feed::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        #news-feed::-webkit-scrollbar-thumb {
+            background: rgba(255, 68, 68, 0.5);
+            border-radius: 3px;
+        }
+
+        #news-feed h3, #launch-calendar h3 {
+            color: #ff4444;
+            font-size: 14px;
+            margin-bottom: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid rgba(255, 68, 68, 0.3);
+            padding-bottom: 8px;
+            position: sticky;
+            top: -15px;
+            background: rgba(40, 0, 0, 0.95);
+            z-index: 11;
+            margin-left: -15px;
+            margin-right: -15px;
+            padding-left: 15px;
+            padding-right: 15px;
+            padding-top: 15px;
+            margin-top: -15px;
+        }
+
+        .news-container-wrapper, .launch-container-wrapper {
+            padding-top: 15px;
+        }
+
+        .news-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 68, 68, 0.1);
+            color: #ff6666;
+            font-size: 11px;
+            line-height: 1.5;
+            cursor: pointer;
+            transition: background 0.2s;
+            padding: 10px;
+            margin-left: -10px;
+            margin-right: -10px;
+            border-radius: 3px;
+        }
+
+        .news-item:hover {
+            background: rgba(255, 68, 68, 0.1);
+        }
+
+        .news-item:last-child {
+            border-bottom: none;
+        }
+
+        .news-item::before {
+            content: "▸";
+            margin-right: 8px;
+            color: #ff4444;
+        }
+
+        .news-timestamp {
+            font-size: 9px;
+            color: #cc4444;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        #planet-info-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(40, 0, 0, 0.95);
+            border: 2px solid #ff4444;
+            padding: 25px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 85vh;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.5);
+        }
+        
+        /* Responsive widths */
+        @media (min-width: 768px) {
+            #planet-info-modal {
+                width: 80%;
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            #planet-info-modal {
+                width: 700px;
+            }
+        }
+
+        #planet-info-modal h2 {
+            color: #ff4444;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #ff4444;
+            font-size: 20px;
+        }
+
+        #planet-info-modal .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #ff4444;
+            font-size: 24px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+        }
+
+        #planet-info-modal .close-btn:hover {
+            color: #ff8888;
+        }
+
+        .planet-stat {
+            margin: 10px 0;
+            color: #ff6666;
+            font-size: 13px;
+        }
+
+        .planet-news {
+            margin-top: 20px;
+            color: #ff6666;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                transparent 50%,
+                rgba(255, 68, 68, 0.03) 50%
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 3;
+            opacity: 0.3;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .celestial-body {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .celestial-body:hover {
+            filter: brightness(1.5);
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #0ff;
+            font-size: 24px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="scanline"></div>
+    
+    <div class="overlay">
+        <div class="panel top-left">
+            <div id="date-display">LOADING...</div>
+            <div id="time-display">--:--:--</div>
+            <div id="utc-display">UTC: --:--:--</div>
+            
+            <div id="time-progress-bars">
+                <div class="progress-item">
+                    <div class="progress-label">Minute</div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="minute-progress"></div>
+                    </div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-label">Hour</div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="hour-progress"></div>
+                    </div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-label">Day</div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="day-progress"></div>
+                    </div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-label">Month</div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="month-progress"></div>
+                    </div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-label">Year</div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="year-progress"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel top-right">
+            <div class="location-label">CURRENT LOCATION</div>
+            <div id="location-display">
+                <div>Acquiring coordinates...</div>
+            </div>
+            
+            <div id="current-weather" style="display: none; margin-top: 6px; font-size: 11px; opacity: 0.9; line-height: 1.6; text-align: right;">
+                <div style="display: flex; gap: 15px; justify-content: flex-end; align-items: baseline;">
+                    <div><span id="weather-temp">--°</span></div>
+                    <div style="font-size: 10px; opacity: 0.8;"><span id="weather-desc">--</span></div>
+                </div>
+            </div>
+            
+            <div id="sun-times" style="display: none; margin-top: 12px; margin-bottom: 8px; font-size: 10px; opacity: 0.8; line-height: 1.5; text-align: right;">
+                <div>☀️ Rise: <span id="sunrise-time">--:--</span></div>
+                <div>Set: <span id="sunset-time">--:--</span></div>
+            </div>
+            
+            <div id="moon-phase" style="justify-content: flex-end;">
+                <img id="moon-phase-canvas" width="35" height="35" alt="Moon Phase" />
+                <div id="moon-phase-text">
+                    <div id="moon-phase-name">Calculating...</div>
+                    <div style="font-size: 9px; opacity: 0.7;" id="moon-illumination">--% illuminated</div>
+                    <div id="moon-times" style="display: none; font-size: 9px; opacity: 0.7; margin-top: 3px;">
+                        <div>Rise: <span id="moonrise-time">--:--</span></div>
+                        <div>Set: <span id="moonset-time">--:--</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="solar-system">
+            <canvas id="solar-canvas"></canvas>
+        </div>
+
+
+        <div id="launch-calendar">
+            <div id="mars-window">
+                <div id="mars-status">Mars Transfer Window: <span id="mars-state">Closed</span></div>
+                <div id="mars-countdown-label">Opens in <span id="mars-time-display">0d 0h 0m 0s</span></div>
+                <div id="mars-progress-bar"></div>
+            </div>
+            
+            <h3 onclick="togglePanel('launch-container')" style="cursor: pointer; user-select: none; margin-top: 15px;">
+                Launch Calendar
+            </h3>
+            <div id="launch-container">
+                <div class="launch-item">Loading launch data...</div>
+            </div>
+        </div>
+
+        <div id="news-feed">
+            <h3 onclick="togglePanel('news-container')" style="cursor: pointer; user-select: none;">
+                Space News Feed
+            </h3>
+            <div id="news-container">
+                <div class="news-item">Loading space news...</div>
+            </div>
+        </div>
+
+        <div id="planet-info-modal">
+            <button class="close-btn" onclick="closeModal()">×</button>
+            <h2 id="modal-title">Planet Name</h2>
+            <div id="modal-content">
+                <div class="planet-stat">Loading information...</div>
+            </div>
+        </div>
+
+        <div id="moon-tooltip"></div>
+
+        <div id="zoom-indicator">ZOOM: 100%</div>
+        <button id="reset-button" onclick="resetView()">click to reset</button>
+    </div>
+
+    <script>
+        // Star field background
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const stars = [];
+        // Scale star count based on screen area (more stars for bigger screens)
+        const screenArea = window.innerWidth * window.innerHeight;
+        const starDensity = 0.0002; // Stars per pixel
+        const starCount = Math.floor(screenArea * starDensity);
+
+        for (let i = 0; i < starCount; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                radius: Math.random() * 1.5,
+                alpha: Math.random() * 0.3, // Dimmed significantly (was 1.0)
+                twinkleSpeed: Math.random() * 0.001 // Much slower twinkling
+            });
+        }
+
+        function drawStars() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Deep space gradient
+            const gradient = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, 0,
+                canvas.width / 2, canvas.height / 2, canvas.width / 2
+            );
+            gradient.addColorStop(0, '#000814');
+            gradient.addColorStop(1, '#000000');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            stars.forEach(star => {
+                star.alpha += star.twinkleSpeed;
+                if (star.alpha > 0.4 || star.alpha < 0.1) { // Cap at 0.4 for dimness
+                    star.twinkleSpeed = -star.twinkleSpeed;
+                }
+
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${Math.abs(star.alpha)})`;
+                ctx.fill();
+            });
+
+            requestAnimationFrame(drawStars);
+        }
+
+        drawStars();
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Regenerate stars for new screen size
+            stars.length = 0;
+            const screenArea = window.innerWidth * window.innerHeight;
+            const starDensity = 0.0002;
+            const starCount = Math.floor(screenArea * starDensity);
+            
+            for (let i = 0; i < starCount; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: Math.random() * 1.5,
+                    alpha: Math.random() * 0.3,
+                    twinkleSpeed: Math.random() * 0.001
+                });
+            }
+        });
+
+        // Time display with classic ticker effect
+        function updateTime() {
+            const now = new Date();
+            
+            // Local time
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const timeText = `${hours}:${minutes}:${seconds}`;
+            
+            document.getElementById('time-display').textContent = timeText;
+
+            // UTC time
+            const utcHours = String(now.getUTCHours()).padStart(2, '0');
+            const utcMinutes = String(now.getUTCMinutes()).padStart(2, '0');
+            const utcSeconds = String(now.getUTCSeconds()).padStart(2, '0');
+            document.getElementById('utc-display').textContent = `UTC: ${utcHours}:${utcMinutes}:${utcSeconds}`;
+
+            // Date
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('date-display').textContent = now.toLocaleDateString('en-US', options).toUpperCase();
+        }
+
+        updateTime();
+        setInterval(updateTime, 1000);
+
+
+        // Progress bars moved below
+        
+        // Mars transfer window update function
+        function updateMarsWindow() {
+            const now = new Date();
+            
+            // Mars transfer window calculation using orbital mechanics
+            // Based on Hohmann transfer orbit and synodic period
+            
+            // Constants
+            const SYNODIC_PERIOD = 779.94; // days (Earth-Mars synodic period)
+            const WINDOW_DURATION = 45; // days (typical launch window duration)
+            
+            // Known reference window from NASA (for validation/averaging)
+            const KNOWN_WINDOW_START = new Date('2026-11-01');
+            const KNOWN_WINDOW_END = new Date('2026-12-15');
+            
+            // Calculate windows based on synodic period from a reference point
+            // Using last major window (Sept 2024) as reference
+            const REFERENCE_WINDOW = new Date('2024-09-15'); // Mid-point of Sept 2024 window
+            
+            // Calculate how many synodic periods have passed since reference
+            const daysSinceReference = (now - REFERENCE_WINDOW) / (1000 * 60 * 60 * 24);
+            const cyclesSinceReference = Math.floor(daysSinceReference / SYNODIC_PERIOD);
+            const nextCycleNumber = cyclesSinceReference + 1;
+            
+            // Calculate next window using synodic period
+            const calculatedWindowStart = new Date(REFERENCE_WINDOW.getTime() + (nextCycleNumber * SYNODIC_PERIOD * 24 * 60 * 60 * 1000));
+            const calculatedWindowEnd = new Date(calculatedWindowStart.getTime() + (WINDOW_DURATION * 24 * 60 * 60 * 1000));
+            
+            // Average with NASA known dates for better accuracy (if we're close to known window)
+            let windowStart, windowEnd;
+            const daysUntilKnownWindow = (KNOWN_WINDOW_START - now) / (1000 * 60 * 60 * 24);
+            
+            if (Math.abs(daysUntilKnownWindow) < 180) {
+                // Within ~6 months of NASA window, use NASA dates
+                windowStart = KNOWN_WINDOW_START;
+                windowEnd = KNOWN_WINDOW_END;
+            } else {
+                // Use calculated dates
+                windowStart = calculatedWindowStart;
+                windowEnd = calculatedWindowEnd;
+            }
+            
+            // Calculate previous and next cycle dates
+            const previousWindowStart = new Date(windowStart.getTime() - (SYNODIC_PERIOD * 24 * 60 * 60 * 1000));
+            const previousWindowEnd = new Date(previousWindowStart.getTime() + (WINDOW_DURATION * 24 * 60 * 60 * 1000));
+            const nextWindowStart = new Date(windowStart.getTime() + (SYNODIC_PERIOD * 24 * 60 * 60 * 1000));
+            
+            const windowDuration = windowEnd - windowStart;
+            const timeUntilWindow = windowStart - now;
+            const timeUntilEnd = windowEnd - now;
+            
+            const progressBar = document.getElementById('mars-progress-bar');
+            const stateElement = document.getElementById('mars-state');
+            const countdownLabel = document.getElementById('mars-countdown-label');
+            
+            if (timeUntilWindow > 0) {
+                // Counting down to window opening
+                const days = Math.floor(timeUntilWindow / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((timeUntilWindow % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((timeUntilWindow % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((timeUntilWindow % (1000 * 60)) / 1000);
+                
+                stateElement.textContent = 'Closed';
+                stateElement.classList.remove('open');
+                countdownLabel.innerHTML = `Opens in <span id="mars-time-display">${days}d ${hours}h ${minutes}m ${seconds}s</span>`;
+                
+                // Progress from previous window close to next window open
+                const cycleDuration = windowStart - previousWindowEnd;
+                const elapsed = now - previousWindowEnd;
+                const progress = (elapsed / cycleDuration) * 100;
+                progressBar.style.setProperty('--progress', Math.min(Math.max(progress, 0), 100) + '%');
+                progressBar.classList.remove('open');
+            } else if (timeUntilEnd > 0) {
+                // Window is OPEN
+                const daysLeft = Math.floor(timeUntilEnd / (1000 * 60 * 60 * 24));
+                const hoursLeft = Math.floor((timeUntilEnd % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutesLeft = Math.floor((timeUntilEnd % (1000 * 60 * 60)) / (1000 * 60));
+                const secondsLeft = Math.floor((timeUntilEnd % (1000 * 60)) / 1000);
+                
+                stateElement.textContent = 'Open';
+                stateElement.classList.add('open');
+                countdownLabel.innerHTML = `Closes in <span id="mars-time-display">${daysLeft}d ${hoursLeft}h ${minutesLeft}m ${secondsLeft}s</span>`;
+                
+                const windowElapsed = now - windowStart;
+                const windowProgress = (windowElapsed / windowDuration) * 100;
+                progressBar.style.setProperty('--progress', Math.min(windowProgress, 100) + '%');
+                progressBar.classList.add('open');
+            } else {
+                // Window has closed, counting to next window
+                const timeUntilNext = nextWindowStart - now;
+                const daysUntilNext = Math.floor(timeUntilNext / (1000 * 60 * 60 * 24));
+                
+                stateElement.textContent = 'Closed';
+                stateElement.classList.remove('open');
+                countdownLabel.innerHTML = `Opens in <span id="mars-time-display">${daysUntilNext} days</span>`;
+                
+                const cycleDuration = nextWindowStart - windowEnd;
+                const elapsed = now - windowEnd;
+                const progress = (elapsed / cycleDuration) * 100;
+                progressBar.style.setProperty('--progress', Math.min(progress, 100) + '%');
+                progressBar.classList.remove('open');
+            }
+        }
+        
+        updateMarsWindow();
+        setInterval(updateMarsWindow, 1000);
+
+        // Smooth progress bar updates
+        function updateProgressBars() {
+            const now = new Date();
+            const seconds = now.getSeconds();
+            const milliseconds = now.getMilliseconds();
+            
+            // Minute progress - ultra smooth with milliseconds
+            const minuteProgress = ((seconds * 1000 + milliseconds) / 60000) * 100;
+            document.getElementById('minute-progress').style.width = minuteProgress + '%';
+            
+            // Request next frame for smooth animation
+            requestAnimationFrame(updateProgressBars);
+        }
+        
+        // Update other progress bars every second
+        function updateOtherProgressBars() {
+            const now = new Date();
+            const seconds = now.getSeconds();
+            const minutes = now.getMinutes();
+            
+            // Hour progress
+            const hourProgress = ((minutes * 60 + seconds) / 3600) * 100;
+            document.getElementById('hour-progress').style.width = hourProgress + '%';
+            
+            // Day progress
+            const hours = now.getHours();
+            const dayProgress = ((hours * 3600 + minutes * 60 + seconds) / 86400) * 100;
+            document.getElementById('day-progress').style.width = dayProgress + '%';
+            
+            // Month progress
+            const dayOfMonth = now.getDate();
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            const monthProgress = (dayOfMonth / daysInMonth) * 100;
+            document.getElementById('month-progress').style.width = monthProgress + '%';
+            
+            // Year progress
+            const startOfYear = new Date(now.getFullYear(), 0, 1);
+            const endOfYear = new Date(now.getFullYear() + 1, 0, 1);
+            const yearProgress = ((now - startOfYear) / (endOfYear - startOfYear)) * 100;
+            document.getElementById('year-progress').style.width = yearProgress + '%';
+        }
+
+        updateProgressBars(); // Start smooth animation loop
+        updateOtherProgressBars();
+        setInterval(updateOtherProgressBars, 1000);
+
+        // Location
+        function updateLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude.toFixed(4);
+                        const lon = position.coords.longitude.toFixed(4);
+                        
+                        // Try using BigDataCloud API (no CORS restrictions, free tier)
+                        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`)
+                            .then(response => response.json())
+                            .then(data => {
+                                const city = data.city || data.locality || 'Unknown';
+                                const state = data.principalSubdivision || '';
+                                
+                                document.getElementById('location-display').innerHTML = `
+                                    <div style="font-size: 14px; margin-bottom: 5px;">${city}${state ? ', ' + state : ''}</div>
+                                    <div style="font-size: 11px; opacity: 0.7;">${lat}°, ${lon}°</div>
+                                `;
+                            })
+                            .catch(() => {
+                                // If that fails, just show coordinates
+                                document.getElementById('location-display').innerHTML = `
+                                    <div style="font-size: 14px; margin-bottom: 5px;">Location Found</div>
+                                    <div style="font-size: 11px; opacity: 0.7;">${lat}°, ${lon}°</div>
+                                `;
+                            });
+                    },
+                    () => {
+                        document.getElementById('location-display').innerHTML = `
+                            <div style="font-size: 14px;">Location unavailable</div>
+                            <div style="font-size: 11px; opacity: 0.7;">Enable location access</div>
+                        `;
+                    }
+                );
+            } else {
+                document.getElementById('location-display').innerHTML = `
+                    <div style="font-size: 14px;">Geolocation not supported</div>
+                    <div style="font-size: 11px; opacity: 0.7;">Browser limitation</div>
+                `;
+            }
+        }
+
+        // Moon Phase Calculation and Display
+        function calculateMoonPhase() {
+            // Use wttr.in API which provides accurate moon phase data AND location
+            fetch('https://wttr.in/?format=j1')
+                .then(response => {
+                    if (!response.ok) throw new Error('API returned ' + response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Full API response:', data);
+                    
+                    if (!data.weather || !data.weather[0] || !data.weather[0].astronomy) {
+                        throw new Error('Invalid API response structure');
+                    }
+                    
+                    const astronomy = data.weather[0].astronomy[0];
+                    console.log('Astronomy data:', astronomy);
+                    
+                    // Extract location from wttr.in (nearest_area gives city/region)
+                    if (data.nearest_area && data.nearest_area[0]) {
+                        const location = data.nearest_area[0];
+                        const areaName = location.areaName?.[0]?.value || '';
+                        const region = location.region?.[0]?.value || '';
+                        const country = location.country?.[0]?.value || '';
+                        const lat = location.latitude || '';
+                        const lon = location.longitude || '';
+                        
+                        // Build location string
+                        let locationText = areaName;
+                        if (region && region !== areaName) {
+                            locationText += ', ' + region;
+                        }
+                        if (!locationText) {
+                            locationText = country || 'Unknown';
+                        }
+                        
+                        document.getElementById('location-display').innerHTML = `
+                            <div style="font-size: 14px; margin-bottom: 5px;">${locationText}</div>
+                            <div style="font-size: 11px; opacity: 0.7;">${lat}°, ${lon}°</div>
+                        `;
+                    }
+                    
+                    // Extract current weather
+                    if (data.current_condition && data.current_condition[0]) {
+                        const current = data.current_condition[0];
+                        const tempF = current.temp_F || '--';
+                        const tempC = current.temp_C || '--';
+                        const weatherDesc = current.weatherDesc?.[0]?.value || 'Unknown';
+                        
+                        // Show both F and C
+                        document.getElementById('weather-temp').textContent = `${tempF}°F / ${tempC}°C`;
+                        document.getElementById('weather-desc').textContent = weatherDesc;
+                        document.getElementById('current-weather').style.display = 'block';
+                        
+                        console.log('Weather:', tempF + '°F', weatherDesc);
+                    }
+                    
+                    // Get moon phase from API
+                    const moonPhase = astronomy.moon_phase || 'Unknown';
+                    let moonIllumination = astronomy.moon_illumination || '0';
+                    
+                    // Clean illumination - remove % if present, ensure it's a number
+                    moonIllumination = moonIllumination.toString().replace('%', '').trim();
+                    
+                    console.log('Parsed - Phase:', moonPhase, 'Illumination:', moonIllumination + '%');
+                    
+                    // Update text
+                    document.getElementById('moon-phase-name').textContent = moonPhase;
+                    document.getElementById('moon-illumination').textContent = `${moonIllumination}% illuminated`;
+                    
+                    // Update sun times
+                    if (astronomy.sunrise && astronomy.sunset) {
+                        document.getElementById('sunrise-time').textContent = astronomy.sunrise;
+                        document.getElementById('sunset-time').textContent = astronomy.sunset;
+                        document.getElementById('sun-times').style.display = 'block';
+                    }
+                    
+                    // Update moon times
+                    if (astronomy.moonrise && astronomy.moonset) {
+                        document.getElementById('moonrise-time').textContent = astronomy.moonrise;
+                        document.getElementById('moonset-time').textContent = astronomy.moonset;
+                        document.getElementById('moon-times').style.display = 'block';
+                    }
+                    
+                    // Use moon phase emoji
+                    drawMoonPhaseFromAPI(moonPhase, parseInt(moonIllumination));
+                })
+                .catch(error => {
+                    console.error('Moon phase API error:', error);
+                    console.log('Using fallback calculation...');
+                    
+                    // Fallback location display
+                    document.getElementById('location-display').innerHTML = `
+                        <div style="font-size: 14px; margin-bottom: 5px;">Location unavailable</div>
+                        <div style="font-size: 11px; opacity: 0.7;">Using default times</div>
+                    `;
+                    
+                    // Fallback to local calculation
+                    const now = new Date();
+                    
+                    // Known new moon: January 29, 2026 at 12:36 UTC (close to today)
+                    const knownNewMoon = new Date('2026-01-29T12:36:00Z');
+                    const lunarCycle = 29.53058867; // days per lunar cycle
+                    
+                    // Calculate days since known new moon
+                    const daysSinceNewMoon = (now - knownNewMoon) / (1000 * 60 * 60 * 24);
+                    const phase = (daysSinceNewMoon % lunarCycle) / lunarCycle;
+                    
+                    console.log('Phase value:', phase, 'Days since new moon:', daysSinceNewMoon % lunarCycle);
+                    
+                    // Determine phase name based on position in cycle
+                    let phaseName;
+                    if (phase < 0.03 || phase > 0.97) phaseName = 'New Moon';
+                    else if (phase < 0.22) phaseName = 'Waxing Crescent';
+                    else if (phase < 0.28) phaseName = 'First Quarter';
+                    else if (phase < 0.47) phaseName = 'Waxing Gibbous';
+                    else if (phase < 0.53) phaseName = 'Full Moon';
+                    else if (phase < 0.72) phaseName = 'Waning Gibbous';
+                    else if (phase < 0.78) phaseName = 'Last Quarter';
+                    else phaseName = 'Waning Crescent';
+                    
+                    console.log('Fallback calculation - Phase:', phaseName, 'Phase value:', phase);
+                    
+                    document.getElementById('moon-phase-name').textContent = phaseName;
+                    
+                    // Simple sunrise/sunset estimation (approximate for Louisville, KY)
+                    // In real app would use SunCalc library, but keeping it simple
+                    const month = now.getMonth();
+                    const sunriseTimes = ['7:30 AM', '7:15 AM', '6:45 AM', '6:00 AM', '5:30 AM', '5:15 AM', '5:30 AM', '6:00 AM', '6:30 AM', '7:00 AM', '6:45 AM', '7:15 AM'];
+                    const sunsetTimes = ['5:45 PM', '6:15 PM', '6:45 PM', '7:15 PM', '7:45 PM', '8:15 PM', '8:30 PM', '8:00 PM', '7:15 PM', '6:30 PM', '5:45 PM', '5:30 PM'];
+                    
+                    document.getElementById('sunrise-time').textContent = sunriseTimes[month];
+                    document.getElementById('sunset-time').textContent = sunsetTimes[month];
+                    document.getElementById('sun-times').style.display = 'block';
+                    
+                    // Moonrise/moonset varies daily - show as approximate
+                    document.getElementById('moonrise-time').textContent = '--:--';
+                    document.getElementById('moonset-time').textContent = '--:--';
+                    document.getElementById('moon-times').style.display = 'block';
+                    
+                    // Draw with correct phase - function will set illumination based on phase name
+                    drawMoonPhaseFromAPI(phaseName, 0);
+
+                });
+        }
+
+        function drawMoonPhaseFromAPI(phaseName, illumination) {
+            const img = document.getElementById('moon-phase-canvas');
+            const container = document.getElementById('moon-phase');
+            
+            // Map phase names to illumination percentage
+            const phaseData = {
+                'New Moon': { illumination: 0, phase: 0 },
+                'Waxing Crescent': { illumination: 25, phase: 0.125 },
+                'First Quarter': { illumination: 50, phase: 0.25 },
+                'Waxing Gibbous': { illumination: 75, phase: 0.375 },
+                'Full Moon': { illumination: 100, phase: 0.5 },
+                'Waning Gibbous': { illumination: 75, phase: 0.625 },
+                'Last Quarter': { illumination: 50, phase: 0.75 },
+                'Third Quarter': { illumination: 50, phase: 0.75 },
+                'Waning Crescent': { illumination: 25, phase: 0.875 }
+            };
+            
+            const data = phaseData[phaseName] || phaseData['Full Moon'];
+            
+            // Override the illumination display
+            document.getElementById('moon-illumination').textContent = `${data.illumination}% illuminated`;
+            
+            // Draw realistic moon phase
+            const canvas = document.createElement('canvas');
+            canvas.width = 35;
+            canvas.height = 35;
+            const ctx = canvas.getContext('2d');
+            
+            const centerX = 17.5;
+            const centerY = 17.5;
+            const radius = 16;
+            
+            // Draw dark background circle
+            ctx.fillStyle = '#2a2a2a';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw illuminated portion with accurate shape
+            ctx.fillStyle = '#e8e8e8';
+            ctx.shadowBlur = 4;
+            ctx.shadowColor = '#ffffff';
+            
+            if (data.phase === 0) {
+                // New moon - just dark circle (already drawn)
+            } else if (data.phase === 0.5) {
+                // Full moon - bright circle
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (data.phase < 0.5) {
+                // Waxing - right side lit
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, -Math.PI/2, Math.PI/2);
+                
+                // Calculate terminator curve
+                const phase = data.phase * 2; // 0 to 1
+                const terminatorOffset = (phase - 0.5) * 2 * radius;
+                ctx.ellipse(centerX, centerY, Math.abs(terminatorOffset), radius, 0, Math.PI/2, -Math.PI/2, terminatorOffset < 0);
+                ctx.fill();
+            } else {
+                // Waning - left side lit
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, Math.PI/2, -Math.PI/2);
+                
+                // Calculate terminator curve
+                const phase = (data.phase - 0.5) * 2; // 0 to 1
+                const terminatorOffset = (0.5 - phase) * 2 * radius;
+                ctx.ellipse(centerX, centerY, Math.abs(terminatorOffset), radius, 0, -Math.PI/2, Math.PI/2, terminatorOffset < 0);
+                ctx.fill();
+            }
+            
+            ctx.shadowBlur = 0;
+            
+            // Add subtle gradient for 3D effect
+            const gradient = ctx.createRadialGradient(centerX - 5, centerY - 5, 0, centerX, centerY, radius);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0.1)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            img.src = canvas.toDataURL();
+            
+            // Show the moon phase container and image
+            container.style.display = 'flex';
+            img.style.display = 'block';
+        }
+
+
+        // Location now comes from wttr.in API (no permission needed!)
+        // updateLocation(); // Removed - using IP-based location from wttr.in instead
+        calculateMoonPhase();
+        
+        // Update moon phase every hour
+        setInterval(calculateMoonPhase, 3600000);
+
+        // Solar System
+        const solarCanvas = document.getElementById('solar-canvas');
+        const solarCtx = solarCanvas.getContext('2d');
+        
+        // Define celestial bodies BEFORE functions that use them
+        // Using real orbital periods and mean distances from Sun
+        // Note: For production use, consider NASA's Horizons API for precise ephemeris data
+        // Reference: https://eyes.nasa.gov/apps/solar-system/ uses JPL ephemeris
+        const celestialBodies = [
+            { name: 'Sol', distance: 0, size: 43, color: '#FDB813', type: 'star', orbitSpeed: 0, meanAnomaly: 0, orbitalPeriod: 0, moons: [] },
+            { name: 'Mercury', distance: 130, size: 8.7, color: '#8C7853', type: 'rocky', orbitSpeed: 0, meanAnomaly: 0, orbitalPeriod: 87.97, moons: [] },
+            { name: 'Venus', distance: 195, size: 13, color: '#FFC649', type: 'rocky', orbitSpeed: 0, meanAnomaly: 0, orbitalPeriod: 224.7, moons: [] },
+            { 
+                name: 'Terra', 
+                distance: 260, 
+                size: 13, 
+                color: '#4A90E2', 
+                type: 'rocky', 
+                orbitSpeed: 0, 
+                meanAnomaly: 0, 
+                orbitalPeriod: 365.26,
+                moons: [
+                    // Luna at normal viewing distance
+                    { name: 'Luna', distance: 21, size: 3.5, color: '#CCCCCC', orbitalPeriod: 27.3 }
+                ],
+                spacecraft: [
+                    // NOTE: Vehicles in transit (to Moon, stations, etc.) should have:
+                    // - visible: true (to show on map)
+                    // - transitTo: 'Luna' or 'ISS' (destination)
+                    // - arrivalDate: Date object (when arriving)
+                    // Docked vehicles have visible: false and don't appear on map
+                    
+                    // Spacecraft with varied angles (meanAnomaly) to spread them around Earth's orbit
+                    { 
+                        name: 'ISS', 
+                        type: 'station',
+                        distance: 3, 
+                        trueDistance: 408,
+                        orbitalPeriod: 0.0643,
+                        size: 2.5,
+                        color: '#FFD700',
+                        crew: [],
+                        visitors: [],
+                        info: 'International Space Station - Humanity\'s outpost in low Earth orbit, continuously inhabited since 2000',
+                        noradId: 25544,
+                        meanAnomaly: 0 // 0 degrees
+                    },
+                    { 
+                        name: 'Tiangong', 
+                        type: 'station',
+                        distance: 3.1,
+                        trueDistance: 390,
+                        orbitalPeriod: 0.0639,
+                        size: 2.2,
+                        color: '#FF6B6B',
+                        crew: [],
+                        visitors: [],
+                        info: 'Chinese Space Station (Tiangong) - China\'s modular space station, operational since 2021',
+                        noradId: 48274,
+                        meanAnomaly: 3.14 // 180 degrees - opposite side
+                    },
+                    { 
+                        name: 'Crew Dragon', 
+                        type: 'capsule',
+                        distance: 2.9,
+                        trueDistance: 410,
+                        orbitalPeriod: 0.0643,
+                        size: 1.5,
+                        color: '#FFFFFF',
+                        crew: [],
+                        visitors: [],
+                        info: 'SpaceX Crew Dragon - Commercial crew vehicle for NASA astronauts',
+                        docked: 'ISS',
+                        meanAnomaly: 1.57, // 90 degrees
+                        visible: false
+                    },
+                    { 
+                        name: 'Soyuz MS', 
+                        type: 'capsule',
+                        distance: 3.2,
+                        trueDistance: 405,
+                        orbitalPeriod: 0.0643,
+                        size: 1.4,
+                        color: '#90EE90',
+                        crew: [],
+                        visitors: [],
+                        info: 'Russian Soyuz MS spacecraft - Reliable crew transport since 1967',
+                        docked: 'ISS',
+                        meanAnomaly: 4.71, // 270 degrees
+                        visible: false
+                    },
+                    { 
+                        name: 'Progress', 
+                        type: 'cargo',
+                        distance: 2.8,
+                        trueDistance: 412,
+                        orbitalPeriod: 0.0643,
+                        size: 1.3,
+                        color: '#ADD8E6',
+                        crew: [],
+                        visitors: [],
+                        info: 'Progress cargo spacecraft - Automated resupply vehicle',
+                        docked: 'ISS',
+                        meanAnomaly: 5.5, // ~315 degrees
+                        visible: false
+                    }
+                ]
+            },
+            { 
+                name: 'Mars', 
+                distance: 327, 
+                size: 11, 
+                color: '#E27B58', 
+                type: 'rocky', 
+                orbitSpeed: 0, 
+                meanAnomaly: 0, 
+                orbitalPeriod: 686.98,
+                moons: [
+                    // Mars moons are tiny and very close - scaling up for visibility
+                    { name: 'Phobos', distance: 20, size: 2.5, color: '#AAA', orbitalPeriod: 0.319 },
+                    { name: 'Deimos', distance: 28, size: 2.0, color: '#999', orbitalPeriod: 1.263 }
+                ]
+            },
+            { name: 'Asteroid Belt', distance: 414, size: 2, color: '#888888', type: 'asteroids', orbitSpeed: 0, meanAnomaly: 0, orbitalPeriod: 1680, moons: [] },
+            { 
+                name: 'Jupiter', 
+                distance: 545, 
+                size: 30, 
+                color: '#C88B3A', 
+                type: 'gas', 
+                orbitSpeed: 0, 
+                meanAnomaly: 0, 
+                orbitalPeriod: 4332.59,
+                moons: [
+                    { name: 'Io', distance: 36, size: 3, color: '#FDB813', orbitalPeriod: 1.769 },
+                    { name: 'Europa', distance: 40, size: 2.7, color: '#E8D5C4', orbitalPeriod: 3.551 },
+                    { name: 'Ganymede', distance: 46, size: 3.3, color: '#B8A99A', orbitalPeriod: 7.155 },
+                    { name: 'Callisto', distance: 52, size: 3.1, color: '#8B7E74', orbitalPeriod: 16.689 }
+                ]
+            },
+            { 
+                name: 'Saturn', 
+                distance: 675, 
+                size: 25, 
+                color: '#FAD5A5', 
+                type: 'gas', 
+                orbitSpeed: 0, 
+                meanAnomaly: 0, 
+                orbitalPeriod: 10759.22,
+                moons: [
+                    { name: 'Titan', distance: 37, size: 3.3, color: '#FFA500', orbitalPeriod: 15.945 },
+                    { name: 'Rhea', distance: 43, size: 2.1, color: '#DDD', orbitalPeriod: 4.518 },
+                    { name: 'Iapetus', distance: 49, size: 2, color: '#CCC', orbitalPeriod: 79.33 },
+                    { name: 'Dione', distance: 31, size: 2, color: '#EEE', orbitalPeriod: 2.737 },
+                    { name: 'Tethys', distance: 27, size: 1.8, color: '#F5F5F5', orbitalPeriod: 1.888 },
+                    { name: 'Enceladus', distance: 22, size: 1.6, color: '#FFFFFF', orbitalPeriod: 1.370 }
+                ]
+            },
+            { 
+                name: 'Uranus', 
+                distance: 783, 
+                size: 18, 
+                color: '#4FD0E7', 
+                type: 'ice', 
+                orbitSpeed: 0, 
+                meanAnomaly: 0, 
+                orbitalPeriod: 30688.5,
+                moons: [
+                    { name: 'Titania', distance: 25, size: 2.1, color: '#B0C4DE', orbitalPeriod: 8.706 },
+                    { name: 'Oberon', distance: 30, size: 2, color: '#A9C4D9', orbitalPeriod: 13.463 },
+                    { name: 'Umbriel', distance: 21, size: 1.8, color: '#8BA0B8', orbitalPeriod: 4.144 },
+                    { name: 'Ariel', distance: 16, size: 2, color: '#C0D8E8', orbitalPeriod: 2.520 },
+                    { name: 'Miranda', distance: 13, size: 1.6, color: '#D0E0F0', orbitalPeriod: 1.413 }
+                ]
+            },
+            { 
+                name: 'Neptune', 
+                distance: 870, 
+                size: 18, 
+                color: '#4166F5', 
+                type: 'ice', 
+                orbitSpeed: 0, 
+                meanAnomaly: 0, 
+                orbitalPeriod: 60182,
+                moons: [
+                    { name: 'Triton', distance: 27, size: 2.7, color: '#B8C8E8', orbitalPeriod: 5.877 },
+                    { name: 'Proteus', distance: 22, size: 1.8, color: '#A8B8D8', orbitalPeriod: 1.122 }
+                ]
+            },
+            { name: 'Kuiper Belt', distance: 1050, size: 2, color: '#666666', type: 'kuiper', orbitSpeed: 0, meanAnomaly: 0, orbitalPeriod: 90560, moons: [] },
+            // Dwarf Planets
+            { 
+                name: 'Pluto', 
+                distance: 1150, 
+                size: 8, 
+                color: '#D4B896', 
+                type: 'dwarf', 
+                orbitSpeed: 0, 
+                meanAnomaly: 0, 
+                orbitalPeriod: 90560,
+                moons: [
+                    { name: 'Charon', distance: 14, size: 4, color: '#AAA', orbitalPeriod: 6.387 }
+                ]
+            },
+            { name: 'Ceres', distance: 414, size: 6, color: '#B8A99A', type: 'dwarf', orbitSpeed: 0, meanAnomaly: 1.5, orbitalPeriod: 1680, moons: [] },
+            { name: 'Eris', distance: 1400, size: 8, color: '#E8DCC4', type: 'dwarf', orbitSpeed: 0, meanAnomaly: 2.8, orbitalPeriod: 203830, moons: [] },
+            { name: 'Makemake', distance: 1320, size: 7, color: '#C8B8A8', type: 'dwarf', orbitSpeed: 0, meanAnomaly: 4.1, orbitalPeriod: 112897, moons: [] },
+            { name: 'Haumea', distance: 1250, size: 7, color: '#D8C8B8', type: 'dwarf', orbitSpeed: 0, meanAnomaly: 5.5, orbitalPeriod: 103774, moons: [] },
+            // Deep Space Satellites (approximate positions - they move!)
+            { name: 'Voyager 1', distance: 1600, size: 6, color: '#FFD700', type: 'probe', orbitSpeed: 0, meanAnomaly: 0.5, orbitalPeriod: 999999, moons: [] },
+            { name: 'Voyager 2', distance: 1550, size: 6, color: '#FFA500', type: 'probe', orbitSpeed: 0, meanAnomaly: 2.1, orbitalPeriod: 999999, moons: [] },
+            { name: 'New Horizons', distance: 1500, size: 6, color: '#87CEEB', type: 'probe', orbitSpeed: 0, meanAnomaly: 3.8, orbitalPeriod: 999999, moons: [] },
+            { name: 'Pioneer 10', distance: 1650, size: 5, color: '#C0C0C0', type: 'probe', orbitSpeed: 0, meanAnomaly: 4.5, orbitalPeriod: 999999, moons: [] }
+        ];
+
+        // Zoom level and pan offset for mouse wheel control
+        let zoomLevel = 1.0;
+        let panX = 0;
+        let panY = 0;
+
+        // Zoom indicator and inactivity timer
+        let zoomIndicatorTimeout = null;
+        let inactivityTimeout = null;
+
+        function showZoomIndicator() {
+            const indicator = document.getElementById('zoom-indicator');
+            const zoomPercent = Math.round(zoomLevel * 100);
+            indicator.textContent = `ZOOM: ${zoomPercent}%`;
+            indicator.classList.add('visible');
+            
+            // Clear existing timeout
+            if (zoomIndicatorTimeout) {
+                clearTimeout(zoomIndicatorTimeout);
+            }
+            
+            // Hide after 3 seconds
+            zoomIndicatorTimeout = setTimeout(() => {
+                indicator.classList.remove('visible');
+            }, 3000);
+        }
+
+        function resetInactivityTimer() {
+            // Clear existing timeout
+            if (inactivityTimeout) {
+                clearTimeout(inactivityTimeout);
+            }
+            
+            // Reset to default view after 60 seconds of inactivity
+            inactivityTimeout = setTimeout(() => {
+                // Only reset if not already at default position
+                if (zoomLevel !== 1.0 || panX !== 0 || panY !== 0) {
+                    zoomLevel = 1.0;
+                    panX = 0;
+                    panY = 0;
+                    showZoomIndicator();
+                }
+            }, 60000);
+        }
+
+        // Calculate current positions based on actual date
+        // Using J2000 epoch (Jan 1, 2000, 12:00 TT) as reference
+        // More accurate positions at J2000 epoch (in radians)
+        const j2000EpochAngles = {
+            'Mercury': 4.40260,   // ~252 degrees
+            'Venus': 3.17650,     // ~182 degrees  
+            'Terra': 1.75347,     // ~100 degrees (Earth)
+            'Mars': 0.31913,      // ~355 degrees
+            'Asteroid Belt': 3.14159, // Fixed at 180 degrees
+            'Jupiter': 0.59945,   // ~34 degrees
+            'Saturn': 0.81670,    // ~47 degrees
+            'Uranus': 5.53939,    // ~317 degrees
+            'Neptune': 5.31130,   // ~304 degrees
+            'Kuiper Belt': 0.0,   // Starting position
+            'Pluto': 0.0,         // Starting position
+            'Ceres': 1.5,         // Starting position (in asteroid belt region)
+            'Eris': 2.8,          // Starting position
+            'Makemake': 4.1,      // Starting position
+            'Haumea': 5.5,        // Starting position
+            'Voyager 1': 0.5,     // Starting position
+            'Voyager 2': 2.1,     // Starting position
+            'New Horizons': 3.8,  // Starting position
+            'Pioneer 10': 4.5     // Starting position
+        };
+
+        function calculatePlanetPosition(planet) {
+            if (planet.name === 'Sol') return 0;
+            
+            // If no epoch angle defined, use the meanAnomaly from the object definition
+            if (!j2000EpochAngles[planet.name]) {
+                return planet.meanAnomaly || 0;
+            }
+            
+            // Days since J2000 epoch (January 1, 2000, 12:00 TT)
+            const j2000 = new Date('2000-01-01T12:00:00Z');
+            const now = new Date();
+            const daysSinceEpoch = (now - j2000) / (1000 * 60 * 60 * 24);
+            
+            // Calculate mean motion (radians per day)
+            const meanMotion = (2 * Math.PI) / planet.orbitalPeriod;
+            
+            // Calculate current mean anomaly (position in orbit)
+            // Mean anomaly = Initial position + (mean motion * time elapsed)
+            const meanAnomaly = (j2000EpochAngles[planet.name] + meanMotion * daysSinceEpoch) % (2 * Math.PI);
+            
+            return meanAnomaly;
+        }
+
+        // Initialize current positions
+        celestialBodies.forEach(planet => {
+            planet.meanAnomaly = calculatePlanetPosition(planet);
+        });
+        
+        // Update planet positions every 15 seconds for accuracy
+        function updatePlanetPositions() {
+            celestialBodies.forEach(planet => {
+                planet.meanAnomaly = calculatePlanetPosition(planet);
+            });
+            console.log('Planet positions recalculated from current time');
+        }
+        
+        // Recalculate positions every 15 seconds
+        setInterval(updatePlanetPositions, 15000);
+
+        let angle = 0;
+        
+        // Shooting star system (must be declared before drawSolarSystem is called)
+        let shootingStars = [];
+        
+        function resizeSolarCanvas() {
+            const container = document.getElementById('solar-system');
+            solarCanvas.width = container.offsetWidth;
+            solarCanvas.height = container.offsetHeight;
+            drawSolarSystem();
+        }
+
+        resizeSolarCanvas();
+        window.addEventListener('resize', resizeSolarCanvas);
+
+        // Shooting star creation function
+        function createShootingStar() {
+            // Random position - start from edge
+            const side = Math.floor(Math.random() * 4); // 0=top, 1=right, 2=bottom, 3=left
+            let startX, startY, angle;
+            
+            switch(side) {
+                case 0: // From top
+                    startX = Math.random() * solarCanvas.width;
+                    startY = -50;
+                    angle = Math.PI / 4 + (Math.random() - 0.5) * Math.PI / 3;
+                    break;
+                case 1: // From right
+                    startX = solarCanvas.width + 50;
+                    startY = Math.random() * solarCanvas.height;
+                    angle = Math.PI * 3/4 + (Math.random() - 0.5) * Math.PI / 3;
+                    break;
+                case 2: // From bottom
+                    startX = Math.random() * solarCanvas.width;
+                    startY = solarCanvas.height + 50;
+                    angle = -Math.PI / 4 + (Math.random() - 0.5) * Math.PI / 3;
+                    break;
+                case 3: // From left
+                    startX = -50;
+                    startY = Math.random() * solarCanvas.height;
+                    angle = Math.PI / 4 + (Math.random() - 0.5) * Math.PI / 3;
+                    break;
+            }
+            
+            shootingStars.push({
+                x: startX,
+                y: startY,
+                angle: angle,
+                speed: 8 + Math.random() * 4, // 8-12 pixels per frame
+                length: 80 + Math.random() * 40, // 80-120 pixel trail
+                life: 1.0, // Fade out
+                brightness: 0.8 + Math.random() * 0.2
+            });
+        }
+        
+        // Roll dice every 120 seconds
+        let firstRoll = true;
+        
+        function rollForShootingStar() {
+            // First roll always creates a shooting star for testing
+            if (firstRoll) {
+                console.log('First roll - Creating shooting star for testing!');
+                createShootingStar();
+                firstRoll = false;
+                return;
+            }
+            
+            const roll = Math.floor(Math.random() * 5) + 1; // 1-5
+            console.log('Shooting star roll:', roll);
+            
+            if (roll % 2 === 0) { // Even numbers: 2, 4
+                console.log('Creating shooting star!');
+                createShootingStar();
+            }
+        }
+        
+        // Roll immediately on page load
+        rollForShootingStar();
+        
+        setInterval(rollForShootingStar, 120000); // Every 120 seconds
+        
+        function drawSolarSystem() {
+            const centerX = solarCanvas.width / 2 + panX;
+            const centerY = solarCanvas.height / 2 + panY;
+            // Improved scale calculation - furthest object (Pioneer 10) at 1650 units needs to fit
+            // Use the smaller dimension and add padding, then apply zoom
+            const maxDistance = 1700; // Pioneer 10's distance + buffer
+            const padding = 1.2; // 20% padding
+            const baseScale = (Math.min(solarCanvas.width, solarCanvas.height) / 2) / (maxDistance * padding);
+            const scale = baseScale * zoomLevel;
+
+            solarCtx.clearRect(0, 0, solarCanvas.width, solarCanvas.height);
+
+            // Calculate dynamic scaling factors once for this frame
+            const distanceMultiplier = zoomLevel > 3 ? 1 + ((zoomLevel - 1) * 0.15) : 1;
+            const sizeScale = zoomLevel > 2 ? Math.max(0.3, 1 - ((zoomLevel - 1) * 0.08)) : 1;
+
+            // Draw orbits with dynamic distance scaling (exclude belts)
+            celestialBodies.forEach(body => {
+                if (body.distance > 0 && body.type !== 'asteroids' && body.type !== 'kuiper') {
+                    solarCtx.beginPath();
+                    solarCtx.arc(centerX, centerY, body.distance * scale * distanceMultiplier, 0, Math.PI * 2);
+                    solarCtx.strokeStyle = 'rgba(255, 68, 68, 0.15)';
+                    solarCtx.lineWidth = 1;
+                    solarCtx.stroke();
+                }
+            });
+
+            // Draw celestial bodies
+            celestialBodies.forEach(body => {
+                let x, y;
+                
+                if (body.distance === 0) {
+                    x = centerX;
+                    y = centerY;
+                } else {
+                    // Use actual calculated position with dynamic distance scaling
+                    const bodyAngle = body.meanAnomaly;
+                    x = centerX + Math.cos(bodyAngle) * body.distance * scale * distanceMultiplier;
+                    y = centerY + Math.sin(bodyAngle) * body.distance * scale * distanceMultiplier;
+                }
+
+                // Draw body
+                if (body.type === 'asteroids' || body.type === 'kuiper') {
+                    // Draw belts with visible subtle rotation - dust-like appearance
+                    const rotationAngle = Date.now() / 272727; // 10% faster (was 300000)
+                    const particleCount = body.type === 'kuiper' ? 250 : 200; // Many small particles
+                    const spread = body.type === 'kuiper' ? 25 : 8; // Much narrower, more to scale
+                    
+                    for (let i = 0; i < particleCount; i++) {
+                        const seed = i * 0.618033988749895;
+                        const particleAngle = body.meanAnomaly + rotationAngle + (i * Math.PI * 2 / particleCount) + Math.sin(i) * 0.1;
+                        const randomDistance = body.distance + (Math.sin(i * 7) - 0.5) * spread;
+                        const px = centerX + Math.cos(particleAngle) * randomDistance * scale * distanceMultiplier;
+                        const py = centerY + Math.sin(particleAngle) * randomDistance * scale * distanceMultiplier;
+                        
+                        solarCtx.beginPath();
+                        // Very small dust-like particles - even smaller, no scale-based sizing
+                        const particleSize = 0.3 + Math.abs(Math.sin(i * 3)) * 0.2;
+                        solarCtx.arc(px, py, particleSize, 0, Math.PI * 2);
+                        
+                        // Different brightness ranges for each belt
+                        const brightness = body.type === 'kuiper' ? 
+                            70 + Math.floor(Math.abs(Math.sin(i * 11)) * 45) : 
+                            90 + Math.floor(Math.abs(Math.sin(i * 11)) * 65);
+                        solarCtx.fillStyle = `rgb(${brightness}, ${brightness}, ${brightness})`;
+                        solarCtx.fill();
+                    }
+                } else {
+                    // Draw planets as colored circles with dynamic sizing
+                    solarCtx.beginPath();
+                    solarCtx.arc(x, y, body.size * scale * sizeScale, 0, Math.PI * 2);
+                    
+                    if (body.name === 'Sol') {
+                        const gradient = solarCtx.createRadialGradient(x, y, 0, x, y, body.size * scale * sizeScale);
+                        gradient.addColorStop(0, '#FFF4A3');
+                        gradient.addColorStop(0.5, '#FDB813');
+                        gradient.addColorStop(1, '#F76B1C');
+                        solarCtx.fillStyle = gradient;
+                    } else if (body.name === 'Terra') {
+                        // Earth - blue with subtle green hint
+                        const gradient = solarCtx.createRadialGradient(x, y, 0, x, y, body.size * scale * sizeScale);
+                        gradient.addColorStop(0, '#6BB6FF');
+                        gradient.addColorStop(0.5, '#4A9FD8');
+                        gradient.addColorStop(1, '#2874A6');
+                        solarCtx.fillStyle = gradient;
+                    } else if (body.name === 'Mars') {
+                        // Mars - rusty red gradient
+                        const gradient = solarCtx.createRadialGradient(x, y, 0, x, y, body.size * scale * sizeScale);
+                        gradient.addColorStop(0, '#E8927C');
+                        gradient.addColorStop(0.5, '#CD6155');
+                        gradient.addColorStop(1, '#A93226');
+                        solarCtx.fillStyle = gradient;
+                    } else if (body.name === 'Jupiter') {
+                        // Jupiter - tan gradient
+                        const gradient = solarCtx.createRadialGradient(x, y, 0, x, y, body.size * scale * sizeScale);
+                        gradient.addColorStop(0, '#E8D4B0');
+                        gradient.addColorStop(0.5, '#C9A876');
+                        gradient.addColorStop(1, '#A67C52');
+                        solarCtx.fillStyle = gradient;
+                    } else if (body.name === 'Neptune') {
+                        // Neptune - blue-green gradient
+                        const gradient = solarCtx.createRadialGradient(x, y, 0, x, y, body.size * scale * sizeScale);
+                        gradient.addColorStop(0, '#5DADE2');
+                        gradient.addColorStop(0.5, '#3498DB');
+                        gradient.addColorStop(1, '#1F618D');
+                        solarCtx.fillStyle = gradient;
+                    } else {
+                        solarCtx.fillStyle = body.color;
+                    }
+                    
+                    solarCtx.fill();
+                    
+                    // Add Jupiter's Great Red Spot
+                    if (body.name === 'Jupiter') {
+                        solarCtx.beginPath();
+                        solarCtx.ellipse(x + body.size * scale * sizeScale * 0.4, y, 
+                                        body.size * scale * sizeScale * 0.3, body.size * scale * sizeScale * 0.2, 0, 0, Math.PI * 2);
+                        solarCtx.fillStyle = 'rgba(180, 60, 50, 0.6)';
+                        solarCtx.fill();
+                    }
+                    
+                    // Draw Saturn's rings (after the planet is drawn)
+                    if (body.name === 'Saturn') {
+                        solarCtx.save();
+                        solarCtx.translate(x, y);
+                        solarCtx.rotate(Math.PI / 6); // Tilt rings
+                        
+                        // Draw rings (multiple for depth)
+                        const ringRadii = [1.5, 1.8, 2.1, 2.4];
+                        ringRadii.forEach((multiplier, idx) => {
+                            solarCtx.beginPath();
+                            solarCtx.ellipse(0, 0, body.size * scale * sizeScale * multiplier, body.size * scale * sizeScale * multiplier * 0.2, 0, 0, Math.PI * 2);
+                            const opacity = 0.6 - (idx * 0.1);
+                            solarCtx.strokeStyle = `rgba(200, 180, 150, ${opacity})`;
+                            solarCtx.lineWidth = body.size * scale * sizeScale * 0.15;
+                            solarCtx.stroke();
+                        });
+                        
+                        // Shadow on rings from planet
+                        solarCtx.globalCompositeOperation = 'destination-out';
+                        solarCtx.beginPath();
+                        solarCtx.arc(0, 0, body.size * scale * sizeScale * 1.05, 0, Math.PI * 2);
+                        solarCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                        solarCtx.fill();
+                        solarCtx.globalCompositeOperation = 'source-over';
+                        
+                        solarCtx.restore();
+                    }
+                    
+                    // Add glow effect
+                    solarCtx.shadowBlur = 12 * sizeScale;
+                    solarCtx.shadowColor = body.color;
+                    solarCtx.fill();
+                    solarCtx.shadowBlur = 0;
+
+                    // Draw labels only when zoomed in AND mouse has moved
+                    const isDwarfOrProbe = body.type === 'dwarf' || body.type === 'probe';
+                    const shouldShowLabel = zoomLevel >= 3.0 && showLabels;
+                    
+                    if (shouldShowLabel) {
+                        solarCtx.fillStyle = isDwarfOrProbe ? '#FFD700' : '#ff4444';
+                        const fontSize = 11; // Fixed size, doesn't scale with zoom
+                        solarCtx.font = `bold ${fontSize}px Courier New`;
+                        solarCtx.textAlign = 'center';
+                        solarCtx.shadowBlur = 5;
+                        solarCtx.shadowColor = '#000';
+                        solarCtx.fillText(body.name, x, y - (body.size * scale * sizeScale) - 12);
+                        solarCtx.shadowBlur = 0;
+                    }
+                    
+                    // Draw moons around the planet - only visible when zoomed in past 100%
+                    if (body.moons && body.moons.length > 0 && zoomLevel > 1.0) {
+                        body.moons.forEach((moon, moonIndex) => {
+                            // Calculate realistic moon position based on actual orbital period
+                            const now = Date.now();
+                            const moonOrbitalPeriod = moon.orbitalPeriod || 1;
+                            const moonMeanMotion = (2 * Math.PI) / (moonOrbitalPeriod * 24 * 60 * 60 * 1000);
+                            const moonAngle = (now * moonMeanMotion) % (2 * Math.PI);
+                            
+                            const moonX = x + Math.cos(moonAngle) * moon.distance * scale * distanceMultiplier;
+                            const moonY = y + Math.sin(moonAngle) * moon.distance * scale * distanceMultiplier;
+                            
+                            solarCtx.beginPath();
+                            solarCtx.arc(moonX, moonY, moon.size * scale * sizeScale, 0, Math.PI * 2);
+                            
+                            // Enhanced Luna (Earth's moon) rendering at high zoom
+                            if (moon.name === 'Luna' && zoomLevel >= 15.0) {
+                                // Detailed Luna with gradient
+                                const lunaGradient = solarCtx.createRadialGradient(moonX - moon.size * scale * sizeScale * 0.3, 
+                                                                                   moonY - moon.size * scale * sizeScale * 0.3, 
+                                                                                   0, moonX, moonY, moon.size * scale * sizeScale);
+                                lunaGradient.addColorStop(0, '#E8E8E8');
+                                lunaGradient.addColorStop(0.5, '#C0C0C0');
+                                lunaGradient.addColorStop(1, '#909090');
+                                solarCtx.fillStyle = lunaGradient;
+                                solarCtx.fill();
+                                
+                                // Add craters (darker spots)
+                                const craters = [
+                                    { x: 0.3, y: 0.2, size: 0.15 },
+                                    { x: -0.4, y: -0.1, size: 0.2 },
+                                    { x: 0.1, y: -0.4, size: 0.12 },
+                                    { x: -0.2, y: 0.4, size: 0.18 },
+                                    { x: 0.5, y: -0.2, size: 0.1 }
+                                ];
+                                
+                                craters.forEach(crater => {
+                                    const craterX = moonX + crater.x * moon.size * scale * sizeScale;
+                                    const craterY = moonY + crater.y * moon.size * scale * sizeScale;
+                                    const craterSize = crater.size * moon.size * scale * sizeScale;
+                                    
+                                    solarCtx.beginPath();
+                                    solarCtx.arc(craterX, craterY, craterSize, 0, Math.PI * 2);
+                                    solarCtx.fillStyle = 'rgba(80, 80, 80, 0.4)';
+                                    solarCtx.fill();
+                                });
+                            } else {
+                                // Regular moon rendering
+                                solarCtx.fillStyle = moon.color;
+                                solarCtx.fill();
+                            }
+                            
+                            // Show moon labels when significantly zoomed in AND mouse has moved
+                            if (zoomLevel >= 6.0 && showLabels) {
+                                solarCtx.fillStyle = '#88CCFF'; // Light blue for moon labels
+                                const moonFontSize = 9; // Fixed small size for moon labels
+                                solarCtx.font = `${moonFontSize}px Courier New`;
+                                solarCtx.textAlign = 'center';
+                                solarCtx.shadowBlur = 4;
+                                solarCtx.shadowColor = '#000';
+                                solarCtx.fillText(moon.name, moonX, moonY - (moon.size * scale * sizeScale) - 8);
+                                solarCtx.shadowBlur = 0;
+                            }
+                            
+                            // Store moon position for hover detection
+                            if (!body.moonPositions) body.moonPositions = [];
+                            body.moonPositions[moonIndex] = {
+                                x: moonX,
+                                y: moonY,
+                                radius: moon.size * scale * sizeScale,
+                                name: moon.name,
+                                parentBody: body,
+                                moonData: moon
+                            };
+                        });
+                    }
+                    
+                    // Draw spacecraft (space stations and capsules) - only visible when zoomed in past 175%
+                    if (body.spacecraft && body.spacecraft.length > 0 && zoomLevel > 1.75) {
+                        body.spacecraft.forEach((craft, craftIndex) => {
+                            // Skip if not visible (docked capsules without crew)
+                            if (craft.visible === false) return;
+                            
+                            // Calculate spacecraft orbital position
+                            const now = Date.now();
+                            const craftOrbitalPeriod = craft.orbitalPeriod || 0.0643;
+                            const craftMeanMotion = (2 * Math.PI) / (craftOrbitalPeriod * 24 * 60 * 60 * 1000);
+                            const craftAngle = (craft.meanAnomaly + (now * craftMeanMotion)) % (2 * Math.PI);
+                            
+                            const craftX = x + Math.cos(craftAngle) * craft.distance * scale * distanceMultiplier;
+                            const craftY = y + Math.sin(craftAngle) * craft.distance * scale * distanceMultiplier;
+                            
+                            // Draw spacecraft with distinct appearance
+                            solarCtx.beginPath();
+                            solarCtx.arc(craftX, craftY, craft.size * scale * sizeScale, 0, Math.PI * 2);
+                            solarCtx.fillStyle = craft.color;
+                            solarCtx.fill();
+                            
+                            // Add glow for spacecraft
+                            solarCtx.shadowBlur = 8;
+                            solarCtx.shadowColor = craft.color;
+                            solarCtx.fill();
+                            solarCtx.shadowBlur = 0;
+                            
+                            // Show spacecraft labels when zoomed in to 1750% AND mouse has moved
+                            if (zoomLevel >= 17.5 && showLabels) {
+                                solarCtx.fillStyle = craft.type === 'station' ? '#FFD700' : '#FFFFFF';
+                                const craftFontSize = 9;
+                                solarCtx.font = `bold ${craftFontSize}px Courier New`;
+                                solarCtx.textAlign = 'center';
+                                solarCtx.shadowBlur = 4;
+                                solarCtx.shadowColor = '#000';
+                                solarCtx.fillText(craft.name, craftX, craftY - (craft.size * scale * sizeScale) - 8);
+                                const crewCount = Array.isArray(craft.crew) ? craft.crew.length : craft.crew;
+                                if (crewCount > 0) {
+                                    solarCtx.font = `${craftFontSize - 1}px Courier New`;
+                                    solarCtx.fillText(`👨‍🚀 ${crewCount}`, craftX, craftY + (craft.size * scale * sizeScale) + 12);
+                                }
+                                if (craft.docked) {
+                                    solarCtx.font = `${craftFontSize - 2}px Courier New`;
+                                    solarCtx.fillStyle = '#888';
+                                    solarCtx.fillText(`→${craft.docked}`, craftX, craftY + (craft.size * scale * sizeScale) + 22);
+                                }
+                                solarCtx.shadowBlur = 0;
+                            }
+                            
+                            // Store spacecraft position for click detection
+                            if (!body.spacecraftPositions) body.spacecraftPositions = [];
+                            body.spacecraftPositions[craftIndex] = {
+                                x: craftX,
+                                y: craftY,
+                                radius: craft.size * scale * sizeScale,
+                                name: craft.name,
+                                info: craft.info,
+                                crew: craft.crew,
+                                visitors: craft.visitors,
+                                type: craft.type,
+                                trueDistance: craft.trueDistance,
+                                orbitalPeriod: craft.orbitalPeriod,
+                                docked: craft.docked,
+                                parentBody: body,
+                                craftData: craft
+                            };
+                        });
+                    }
+                }
+
+                // Store position for click detection
+                body.x = x;
+                body.y = y;
+                body.radius = body.size * scale * sizeScale;
+            });
+            
+            // Draw and update shooting stars
+            shootingStars = shootingStars.filter(star => {
+                // Update position
+                star.x += Math.cos(star.angle) * star.speed;
+                star.y += Math.sin(star.angle) * star.speed;
+                star.life -= 0.015; // Fade out
+                
+                // Remove if off screen or faded
+                if (star.life <= 0 || 
+                    star.x < -200 || star.x > solarCanvas.width + 200 ||
+                    star.y < -200 || star.y > solarCanvas.height + 200) {
+                    return false;
+                }
+                
+                // Draw the shooting star
+                const tailX = star.x - Math.cos(star.angle) * star.length;
+                const tailY = star.y - Math.sin(star.angle) * star.length;
+                
+                // Gradient trail
+                const gradient = solarCtx.createLinearGradient(star.x, star.y, tailX, tailY);
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${star.life * star.brightness})`);
+                gradient.addColorStop(0.5, `rgba(255, 200, 150, ${star.life * star.brightness * 0.6})`);
+                gradient.addColorStop(1, 'rgba(255, 150, 100, 0)');
+                
+                solarCtx.strokeStyle = gradient;
+                solarCtx.lineWidth = 2;
+                solarCtx.lineCap = 'round';
+                solarCtx.beginPath();
+                solarCtx.moveTo(star.x, star.y);
+                solarCtx.lineTo(tailX, tailY);
+                solarCtx.stroke();
+                
+                // Bright head
+                solarCtx.fillStyle = `rgba(255, 255, 255, ${star.life * star.brightness})`;
+                solarCtx.beginPath();
+                solarCtx.arc(star.x, star.y, 2, 0, Math.PI * 2);
+                solarCtx.fill();
+                
+                // Glow
+                solarCtx.fillStyle = `rgba(255, 255, 255, ${star.life * star.brightness * 0.3})`;
+                solarCtx.beginPath();
+                solarCtx.arc(star.x, star.y, 4, 0, Math.PI * 2);
+                solarCtx.fill();
+                
+                return true;
+            });
+            
+            // Use requestAnimationFrame for smooth rendering, but throttle
+            requestAnimationFrame(drawSolarSystem);
+        }
+
+        // Initial draw
+        let lastDrawTime = 0;
+        const drawThrottle = 50; // Limit to ~20 FPS for better performance
+        
+        function throttledDraw() {
+            const now = performance.now();
+            if (now - lastDrawTime >= drawThrottle) {
+                drawSolarSystem();
+                lastDrawTime = now;
+            } else {
+                requestAnimationFrame(throttledDraw);
+            }
+        }
+        
+        throttledDraw();
+
+        // Start inactivity timer
+        resetInactivityTimer();
+
+        // Mouse wheel zoom toward cursor position
+        solarCanvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            
+            const rect = solarCanvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            const oldZoom = zoomLevel;
+            const zoomSpeed = 0.15;
+            
+            // Calculate old distanceMultiplier
+            const oldDistanceMultiplier = oldZoom > 3 ? 1 + ((oldZoom - 1) * 0.15) : 1;
+            
+            if (e.deltaY < 0) {
+                zoomLevel = Math.min(zoomLevel + zoomSpeed, 30.0);
+            } else {
+                zoomLevel = Math.max(zoomLevel - zoomSpeed, 0.3);
+            }
+            
+            // Calculate new distanceMultiplier
+            const newDistanceMultiplier = zoomLevel > 3 ? 1 + ((zoomLevel - 1) * 0.15) : 1;
+            
+            // Account for both zoom change AND distance multiplier change
+            const totalScaleFactor = (zoomLevel * newDistanceMultiplier) / (oldZoom * oldDistanceMultiplier);
+            
+            // Adjust pan to keep point under mouse stationary
+            const centerX = solarCanvas.width / 2;
+            const centerY = solarCanvas.height / 2;
+            const offsetX = mouseX - centerX - panX;
+            const offsetY = mouseY - centerY - panY;
+            
+            panX = mouseX - centerX - offsetX * totalScaleFactor;
+            panY = mouseY - centerY - offsetY * totalScaleFactor;
+            
+            // Auto-center when zoomed out beyond 80%
+            if (zoomLevel <= 0.8) {
+                panX = 0;
+                panY = 0;
+            }
+            
+            showZoomIndicator();
+            resetInactivityTimer();
+        });
+
+        // Click and drag to pan
+        let isDragging = false;
+        let lastMouseMoveTime = 0;
+        let showLabels = false;
+        const LABEL_HIDE_DELAY = 3000; // Hide labels after 3 seconds of no mouse movement
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let dragStartPanX = 0;
+        let dragStartPanY = 0;
+
+        solarCanvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            dragStartPanX = panX;
+            dragStartPanY = panY;
+            solarCanvas.style.cursor = 'grabbing';
+            resetInactivityTimer();
+        });
+
+        solarCanvas.addEventListener('mousemove', (e) => {
+            // Show labels when mouse moves
+            showLabels = true;
+            lastMouseMoveTime = Date.now();
+            
+            if (isDragging) {
+                const deltaX = e.clientX - dragStartX;
+                const deltaY = e.clientY - dragStartY;
+                panX = dragStartPanX + deltaX;
+                panY = dragStartPanY + deltaY;
+                
+                // Auto-center when zoomed out beyond 80%
+                if (zoomLevel <= 0.8) {
+                    panX = 0;
+                    panY = 0;
+                }
+                
+                resetInactivityTimer();
+            }
+        });
+
+        solarCanvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            solarCanvas.style.cursor = 'grab';
+        });
+
+        solarCanvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+            solarCanvas.style.cursor = 'grab';
+            showLabels = false; // Hide labels when mouse leaves
+        });
+        
+        // Check if we should hide labels due to inactivity
+        setInterval(() => {
+            if (showLabels && Date.now() - lastMouseMoveTime > LABEL_HIDE_DELAY) {
+                showLabels = false;
+            }
+        }, 1000);
+
+        // Set cursor style
+        solarCanvas.style.cursor = 'grab';
+
+        // Update planetary positions every 15 seconds for smoother animation
+        setInterval(() => {
+            celestialBodies.forEach(planet => {
+                planet.meanAnomaly = calculatePlanetPosition(planet);
+            });
+        }, 15000); // Update every 15 seconds
+
+        // Fetch spacecraft data from APIs
+        async function updateSpacecraftData() {
+            try {
+                // Find Terra
+                const terra = celestialBodies.find(b => b.name === 'Terra');
+                if (!terra || !terra.spacecraft) return;
+
+                // Fetch current astronauts in space
+                const astrosResponse = await fetch('http://api.open-notify.org/astros.json');
+                const astrosData = await astrosResponse.json();
+                
+                if (astrosData.people) {
+                    // Update ISS
+                    const iss = terra.spacecraft.find(s => s.name === 'ISS');
+                    if (iss) {
+                        const issCrew = astrosData.people.filter(p => p.craft === 'ISS');
+                        iss.crew = issCrew;
+                        iss.visitors = issCrew.map(p => p.name);
+                        iss.visible = true;
+                        console.log('ISS Crew:', issCrew.length, 'people');
+                    }
+
+                    // Update Tiangong
+                    const tiangong = terra.spacecraft.find(s => s.name === 'Tiangong');
+                    if (tiangong) {
+                        const tiangongCrew = astrosData.people.filter(p => p.craft === 'Tiangong');
+                        tiangong.crew = tiangongCrew;
+                        tiangong.visitors = tiangongCrew.map(p => p.name);
+                        tiangong.visible = tiangongCrew.length > 0;
+                        console.log('Tiangong Crew:', tiangongCrew.length, 'people');
+                    }
+
+                    // Check for docked vehicles by analyzing crew assignments
+                    const dragonCrew = astrosData.people.filter(p => 
+                        p.craft && (p.craft.includes('Dragon') || p.craft.includes('SpaceX'))
+                    );
+                    const soyuzCrew = astrosData.people.filter(p => 
+                        p.craft && p.craft.includes('Soyuz')
+                    );
+
+                    // Update Crew Dragon
+                    const dragon = terra.spacecraft.find(s => s.name === 'Crew Dragon');
+                    if (dragon) {
+                        dragon.crew = dragonCrew;
+                        dragon.visitors = dragonCrew.map(p => p.name);
+                        dragon.visible = dragonCrew.length > 0;
+                        console.log('Crew Dragon:', dragonCrew.length, 'people');
+                    }
+
+                    // Update Soyuz
+                    const soyuz = terra.spacecraft.find(s => s.name === 'Soyuz MS');
+                    if (soyuz) {
+                        soyuz.crew = soyuzCrew;
+                        soyuz.visitors = soyuzCrew.map(p => p.name);
+                        soyuz.visible = soyuzCrew.length > 0;
+                        console.log('Soyuz:', soyuzCrew.length, 'people');
+                    }
+
+                    console.log('Total people in space:', astrosData.number);
+                }
+            } catch (error) {
+                console.log('Could not fetch spacecraft data:', error.message);
+            }
+        }
+
+        // Initial spacecraft data fetch
+        updateSpacecraftData();
+        
+        // Update spacecraft data every 30 seconds
+        setInterval(updateSpacecraftData, 30000);
+
+        // Click detection for planets and moons (only if not dragging)
+        let clickStartX = 0;
+        let clickStartY = 0;
+        
+        solarCanvas.addEventListener('mousedown', (e) => {
+            clickStartX = e.clientX;
+            clickStartY = e.clientY;
+        });
+        
+        // Easter egg: 20 rapid clicks on empty space = shooting star!
+        let easterEggClicks = [];
+        const EASTER_EGG_CLICKS_NEEDED = 20;
+        const EASTER_EGG_TIME_WINDOW = 10000; // 10 seconds
+        
+        function checkEasterEgg() {
+            const now = Date.now();
+            // Remove clicks older than 10 seconds
+            easterEggClicks = easterEggClicks.filter(time => now - time < EASTER_EGG_TIME_WINDOW);
+            
+            if (easterEggClicks.length >= EASTER_EGG_CLICKS_NEEDED) {
+                console.log('🌟 EASTER EGG ACTIVATED! 20 clicks in 10 seconds!');
+                createShootingStar();
+                easterEggClicks = []; // Reset
+            }
+        }
+        
+        solarCanvas.addEventListener('click', (e) => {
+            // Only trigger click if mouse hasn't moved much (not a drag)
+            const moveDistance = Math.sqrt(
+                Math.pow(e.clientX - clickStartX, 2) + 
+                Math.pow(e.clientY - clickStartY, 2)
+            );
+            
+            if (moveDistance > 5) return; // Was a drag, not a click
+            
+            const rect = solarCanvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            let clicked = false;
+
+            // Check moons first (smaller targets, should have priority)
+            celestialBodies.forEach(body => {
+                if (body.moonPositions && !clicked) {
+                    body.moonPositions.forEach(moon => {
+                        const distance = Math.sqrt(
+                            Math.pow(clickX - moon.x, 2) + Math.pow(clickY - moon.y, 2)
+                        );
+
+                        if (distance <= moon.radius + 5 && !clicked) {
+                            clicked = true;
+                            
+                            // Zoom to moon using same logic as scroll zoom
+                            const oldZoom = zoomLevel;
+                            const newZoom = 18.0;
+                            
+                            // Calculate distanceMultipliers
+                            const oldDistMult = oldZoom > 3 ? 1 + ((oldZoom - 1) * 0.15) : 1;
+                            const newDistMult = newZoom > 3 ? 1 + ((newZoom - 1) * 0.15) : 1;
+                            const scaleFactor = (newZoom * newDistMult) / (oldZoom * oldDistMult);
+                            
+                            // We want moon at screen center
+                            const centerX = solarCanvas.width / 2;
+                            const centerY = solarCanvas.height / 2;
+                            
+                            // Current offset of moon from center
+                            const offsetX = moon.x - centerX - panX;
+                            const offsetY = moon.y - centerY - panY;
+                            
+                            // Adjust pan to keep moon at center while zooming
+                            panX = moon.x - centerX - offsetX * scaleFactor;
+                            panY = moon.y - centerY - offsetY * scaleFactor;
+                            zoomLevel = newZoom;
+                            
+                            showMoonInfo(moon.name, body.name);
+                            showZoomIndicator();
+                        }
+                    });
+                }
+                
+                // Check spacecraft
+                if (body.spacecraftPositions && !clicked) {
+                    body.spacecraftPositions.forEach(craft => {
+                        const distance = Math.sqrt(
+                            Math.pow(clickX - craft.x, 2) + Math.pow(clickY - craft.y, 2)
+                        );
+
+                        if (distance <= craft.radius + 5 && !clicked) {
+                            clicked = true;
+                            
+                            const oldZoom = zoomLevel;
+                            const newZoom = 30.0;
+                            
+                            const oldDistMult = oldZoom > 3 ? 1 + ((oldZoom - 1) * 0.15) : 1;
+                            const newDistMult = newZoom > 3 ? 1 + ((newZoom - 1) * 0.15) : 1;
+                            const scaleFactor = (newZoom * newDistMult) / (oldZoom * oldDistMult);
+                            
+                            const centerX = solarCanvas.width / 2;
+                            const centerY = solarCanvas.height / 2;
+                            const offsetX = craft.x - centerX - panX;
+                            const offsetY = craft.y - centerY - panY;
+                            
+                            panX = craft.x - centerX - offsetX * scaleFactor;
+                            panY = craft.y - centerY - offsetY * scaleFactor;
+                            zoomLevel = newZoom;
+                            
+                            showSpacecraftInfo(craft);
+                            showZoomIndicator();
+                        }
+                    });
+                }
+            });
+
+            // Check planets
+            if (!clicked) {
+                celestialBodies.forEach(body => {
+                    if (body.type !== 'asteroids' && body.type !== 'kuiper') {
+                        const distance = Math.sqrt(
+                            Math.pow(clickX - body.x, 2) + Math.pow(clickY - body.y, 2)
+                        );
+
+                        if (distance <= body.radius + 5) {
+                            clicked = true;
+                            
+                            const oldZoom = zoomLevel;
+                            const newZoom = 15.0;
+                            
+                            const oldDistMult = oldZoom > 3 ? 1 + ((oldZoom - 1) * 0.15) : 1;
+                            const newDistMult = newZoom > 3 ? 1 + ((newZoom - 1) * 0.15) : 1;
+                            const scaleFactor = (newZoom * newDistMult) / (oldZoom * oldDistMult);
+                            
+                            const centerX = solarCanvas.width / 2;
+                            const centerY = solarCanvas.height / 2;
+                            const offsetX = body.x - centerX - panX;
+                            const offsetY = body.y - centerY - panY;
+                            
+                            panX = body.x - centerX - offsetX * scaleFactor;
+                            panY = body.y - centerY - offsetY * scaleFactor;
+                            zoomLevel = newZoom;
+                            
+                            showPlanetInfo(body);
+                            showZoomIndicator();
+                        }
+                    }
+                });
+            }
+            
+            // Easter egg: track clicks on empty space
+            if (!clicked) {
+                easterEggClicks.push(Date.now());
+                checkEasterEgg();
+            }
+        });
+
+        // Mouse hover for moon and planet tooltips
+        const moonTooltip = document.getElementById('moon-tooltip');
+        
+        solarCanvas.addEventListener('mousemove', (e) => {
+            const rect = solarCanvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            let hoverFound = false;
+            
+            // Check for moon hover first (smallest targets)
+            celestialBodies.forEach(body => {
+                if (body.moonPositions && !hoverFound) {
+                    body.moonPositions.forEach(moon => {
+                        const distance = Math.sqrt(
+                            Math.pow(mouseX - moon.x, 2) + Math.pow(mouseY - moon.y, 2)
+                        );
+                        
+                        if (distance <= moon.radius + 3) {
+                            hoverFound = true;
+                            moonTooltip.textContent = moon.name;
+                            moonTooltip.style.display = 'block';
+                            moonTooltip.style.left = (e.clientX + 10) + 'px';
+                            moonTooltip.style.top = (e.clientY + 10) + 'px';
+                        }
+                    });
+                }
+            });
+            
+            // Check for spacecraft hover if no moon found
+            if (!hoverFound) {
+                celestialBodies.forEach(body => {
+                    if (body.spacecraftPositions) {
+                        body.spacecraftPositions.forEach(craft => {
+                            const distance = Math.sqrt(
+                                Math.pow(mouseX - craft.x, 2) + Math.pow(mouseY - craft.y, 2)
+                            );
+                            
+                            if (distance <= craft.radius + 3) {
+                                hoverFound = true;
+                                moonTooltip.textContent = craft.name;
+                                moonTooltip.style.display = 'block';
+                                moonTooltip.style.left = (e.clientX + 10) + 'px';
+                                moonTooltip.style.top = (e.clientY + 10) + 'px';
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // Check for planet hover last (largest targets)
+            if (!hoverFound) {
+                celestialBodies.forEach(body => {
+                    if (body.type !== 'asteroids' && body.type !== 'kuiper' && body.x !== undefined) {
+                        const distance = Math.sqrt(
+                            Math.pow(mouseX - body.x, 2) + Math.pow(mouseY - body.y, 2)
+                        );
+                        
+                        if (distance <= body.radius + 5) {
+                            hoverFound = true;
+                            moonTooltip.textContent = body.name;
+                            moonTooltip.style.display = 'block';
+                            moonTooltip.style.left = (e.clientX + 10) + 'px';
+                            moonTooltip.style.top = (e.clientY + 10) + 'px';
+                        }
+                    }
+                });
+            }
+            
+            if (!hoverFound) {
+                moonTooltip.style.display = 'none';
+            }
+        });
+
+        solarCanvas.addEventListener('mouseleave', () => {
+            moonTooltip.style.display = 'none';
+        });
+
+        function showSpacecraftInfo(craft) {
+            const modal = document.getElementById('planet-info-modal');
+            const title = document.getElementById('modal-title');
+            const content = document.getElementById('modal-content');
+            
+            // Set current panel data for auto-refresh
+            currentPanelData = {
+                type: 'spacecraft',
+                craft: craft,
+                name: craft.name
+            };
+            startInfoPanelRefresh();
+
+            title.textContent = craft.name;
+
+            const crewCount = Array.isArray(craft.crew) ? craft.crew.length : craft.crew;
+            const typeLabel = craft.type === 'station' ? 'Space Station' : 
+                             craft.type === 'capsule' ? 'Crew Capsule' : 
+                             craft.type === 'cargo' ? 'Cargo Vehicle' : 'Spacecraft';
+            
+            const orbitalMinutes = Math.round(craft.orbitalPeriod * 24 * 60);
+            const orbitalHours = Math.floor(orbitalMinutes / 60);
+            const remainingMinutes = orbitalMinutes % 60;
+            const orbitalText = orbitalHours > 0 ? `${orbitalHours}h ${remainingMinutes}m` : `${orbitalMinutes} minutes`;
+            
+            const altitudeHTML = craft.trueDistance ? 
+                `<div class="planet-stat">Altitude: ${craft.trueDistance.toLocaleString()} km above Earth</div>` : '';
+            
+            const dockedHTML = craft.docked ? 
+                `<div class="planet-stat">Status: Docked to ${craft.docked}</div>` : '';
+            
+            let crewListHTML = '';
+            if (craft.visitors && craft.visitors.length > 0) {
+                crewListHTML = `
+                    <div class="planet-news" style="margin-top: 10px;"><strong>Current Crew (${craft.visitors.length}):</strong></div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; margin-top: 6px; font-size: 10px;">
+                        ${craft.visitors.map(name => `
+                            <div style="padding: 4px 6px; background: rgba(255, 68, 68, 0.1); border-radius: 3px; overflow: hidden; text-overflow: ellipsis;">
+                                👨‍🚀 ${name}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            
+            // Check for docked vehicles if this is a station
+            let dockedVehiclesHTML = '';
+            if (craft.type === 'station') {
+                const dockedVehicles = celestialBodies.find(b => b.name === 'Terra')?.spacecraft?.filter(s => 
+                    s.docked === craft.name && s.visible === false
+                ) || [];
+                
+                if (dockedVehicles.length > 0) {
+                    dockedVehiclesHTML = `
+                        <div class="planet-news" style="margin-top: 10px;"><strong>Docked Vehicles (${dockedVehicles.length}):</strong></div>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; margin-top: 6px; font-size: 10px;">
+                            ${dockedVehicles.map(vehicle => `
+                                <div style="padding: 4px 6px; background: rgba(255, 215, 0, 0.1); border-radius: 3px; overflow: hidden; text-overflow: ellipsis;">
+                                    🚀 ${vehicle.name}
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+            }
+            
+            content.innerHTML = `
+                <div class="planet-stat">Type: ${typeLabel}</div>
+                ${altitudeHTML}
+                <div class="planet-stat">Crew: ${crewCount} astronaut${crewCount !== 1 ? 's' : ''}</div>
+                ${dockedHTML}
+                <div class="planet-stat">Orbital Period: ${orbitalText}</div>
+                ${crewListHTML}
+                ${dockedVehiclesHTML}
+                <div class="planet-news">${craft.info || 'Earth-orbiting spacecraft'}</div>
+                <div class="planet-news" style="margin-top: 15px;">
+                    <strong>Recent News:</strong>
+                    <div id="planet-news-items" style="margin-top: 8px; font-size: 11px;">
+                        Loading latest news about ${craft.name}...
+                    </div>
+                </div>
+                <div id="nasa-image-container" style="margin-top: 15px;">
+                    <strong>Recent Images:</strong>
+                    <div id="nasa-image-content" style="margin-top: 8px; overflow-x: auto; overflow-y: hidden; white-space: nowrap; -webkit-overflow-scrolling: touch;">
+                        Loading images...
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'block';
+            
+            // Fetch images from multiple sources
+            let allImages = [];
+            let loadedSources = 0;
+            const totalSources = 2;
+            const imageSearchTerm = craft.name === 'ISS' ? 'international space station' : craft.name;
+            
+            function renderImages() {
+                const imageContainer = document.getElementById('nasa-image-content');
+                if (allImages.length > 0) {
+                    imageContainer.innerHTML = allImages.map(img => `
+                        <div style="display: inline-block; margin-right: 10px; vertical-align: top; width: 200px;">
+                            <img src="${img.url}" alt="${img.title}" style="width: 200px; height: 150px; object-fit: cover; border-radius: 4px; margin-bottom: 6px; cursor: pointer;" onclick="window.open('${img.link || img.url}', '_blank')">
+                            <div style="font-size: 9px; opacity: 0.9; white-space: normal; line-height: 1.3; max-height: 35px; overflow: hidden;">${img.title}</div>
+                            <div style="font-size: 8px; opacity: 0.6; margin-top: 2px;">${img.source} • ${img.date}</div>
+                        </div>
+                    `).join('');
+                } else if (loadedSources >= totalSources) {
+                    imageContainer.innerHTML = `<div style="opacity: 0.7; font-size: 11px;">No images available for ${craft.name}.</div>`;
+                }
+            }
+            
+            // Source 1: NASA Images API
+            fetch(`https://images-api.nasa.gov/search?q=${imageSearchTerm}&media_type=image&year_start=2015`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.collection && data.collection.items) {
+                        data.collection.items.slice(0, 10).forEach(item => {
+                            if (item.links && item.links[0]) {
+                                allImages.push({
+                                    url: item.links[0].href,
+                                    title: item.data[0].title || 'NASA Image',
+                                    date: item.data[0].date_created ? new Date(item.data[0].date_created).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '',
+                                    source: 'NASA',
+                                    link: item.data[0].nasa_id ? `https://images.nasa.gov/details/${item.data[0].nasa_id}` : null
+                                });
+                            }
+                        });
+                    }
+                })
+                .catch(() => {})
+                .finally(() => {
+                    loadedSources++;
+                    renderImages();
+                });
+            
+            // Source 2: Spaceflight News API
+            const newsSearchTerm = craft.name === 'ISS' ? 'international space station' : craft.name;
+            fetch(`https://api.spaceflightnewsapi.net/v4/articles/?search=${newsSearchTerm}&limit=10`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.results) {
+                        data.results.forEach(article => {
+                            if (article.image_url) {
+                                allImages.push({
+                                    url: article.image_url,
+                                    title: article.title.substring(0, 60) + (article.title.length > 60 ? '...' : ''),
+                                    date: new Date(article.published_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                                    source: article.news_site,
+                                    link: article.url
+                                });
+                            }
+                        });
+                    }
+                })
+                .catch(() => {})
+                .finally(() => {
+                    loadedSources++;
+                    renderImages();
+                });
+            
+            // Fetch news about the spacecraft
+            const searchTerm = craft.name === 'ISS' ? 'international space station' : craft.name.toLowerCase();
+            fetch(`https://api.spaceflightnewsapi.net/v4/articles/?search=${searchTerm}&limit=3`)
+                .then(response => response.json())
+                .then(data => {
+                    const newsContainer = document.getElementById('planet-news-items');
+                    if (data.results && data.results.length > 0) {
+                        newsContainer.innerHTML = data.results.map(article => `
+                            <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 68, 68, 0.2);">
+                                <a href="${article.url}" target="_blank" style="color: #ff8888; text-decoration: none;">
+                                    ${article.title}
+                                </a>
+                                <div style="font-size: 10px; color: #cc4444; margin-top: 3px;">
+                                    ${new Date(article.published_at).toLocaleDateString()}
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        newsContainer.innerHTML = 'No recent news found.';
+                    }
+                })
+                .catch(() => {
+                    const newsContainer = document.getElementById('planet-news-items');
+                    if (newsContainer) {
+                        newsContainer.innerHTML = 'Unable to load news.';
+                    }
+                });
+        }
+
+        function showMoonInfo(moonName, planetName) {
+            const modal = document.getElementById('planet-info-modal');
+            const title = document.getElementById('modal-title');
+            const content = document.getElementById('modal-content');
+            
+            // Set current panel data for auto-refresh
+            currentPanelData = {
+                type: 'moon',
+                moonName: moonName,
+                planetName: planetName,
+                name: moonName
+            };
+            startInfoPanelRefresh();
+
+            title.textContent = moonName + ' (' + planetName + ')';
+
+            const moonInfo = {
+                'Luna': { diameter: '3,474 km', orbit: '384,400 km from Terra', info: 'Luna is Terra\'s only natural satellite. It influences tides and has been visited by humans during the Apollo missions.' },
+                'Phobos': { diameter: '22 km', orbit: '9,376 km from Mars', info: 'The larger of Mars\' two moons. Orbits so close to Mars that it rises and sets twice per Martian day.' },
+                'Deimos': { diameter: '12 km', orbit: '23,460 km from Mars', info: 'The smaller and outer moon of Mars. Named after the Greek god of dread and terror.' },
+                'Io': { diameter: '3,643 km', orbit: '421,700 km from Jupiter', info: 'The most volcanically active body in the solar system, with hundreds of active volcanoes.' },
+                'Europa': { diameter: '3,122 km', orbit: '671,100 km from Jupiter', info: 'Has a subsurface ocean beneath its icy crust. A prime target in the search for extraterrestrial life.' },
+                'Ganymede': { diameter: '5,268 km', orbit: '1,070,400 km from Jupiter', info: 'The largest moon in the solar system, even larger than Mercury. Has its own magnetic field.' },
+                'Callisto': { diameter: '4,821 km', orbit: '1,882,700 km from Jupiter', info: 'The most heavily cratered object in the solar system, preserving a record of ancient impacts.' },
+                'Titan': { diameter: '5,150 km', orbit: '1,221,870 km from Saturn', info: 'The only moon with a substantial atmosphere. Has lakes and seas of liquid methane on its surface.' },
+                'Rhea': { diameter: '1,527 km', orbit: '527,040 km from Saturn', info: 'Saturn\'s second-largest moon. May have its own tenuous ring system.' },
+                'Iapetus': { diameter: '1,469 km', orbit: '3,560,820 km from Saturn', info: 'Has a distinctive two-tone coloration with one side much darker than the other.' },
+                'Dione': { diameter: '1,123 km', orbit: '377,400 km from Saturn', info: 'Has wispy terrain features and may have a subsurface ocean.' },
+                'Tethys': { diameter: '1,062 km', orbit: '294,660 km from Saturn', info: 'Features a massive canyon system called Ithaca Chasma stretching across its surface.' },
+                'Enceladus': { diameter: '504 km', orbit: '238,020 km from Saturn', info: 'Shoots geysers of water ice into space from its south polar region. Strong evidence of a subsurface ocean.' },
+                'Titania': { diameter: '1,578 km', orbit: '435,910 km from Uranus', info: 'The largest moon of Uranus. Has a mix of impact craters and fault systems.' },
+                'Oberon': { diameter: '1,523 km', orbit: '583,520 km from Uranus', info: 'The second-largest and outermost major moon of Uranus.' },
+                'Umbriel': { diameter: '1,169 km', orbit: '266,000 km from Uranus', info: 'The darkest of Uranus\'s major moons.' },
+                'Ariel': { diameter: '1,158 km', orbit: '190,900 km from Uranus', info: 'Has the brightest and possibly youngest surface of all Uranian moons.' },
+                'Miranda': { diameter: '472 km', orbit: '129,900 km from Uranus', info: 'Has one of the most extreme and varied topographies of any object in the solar system.' },
+                'Triton': { diameter: '2,707 km', orbit: '354,800 km from Neptune', info: 'Orbits Neptune backwards (retrograde). Likely a captured Kuiper Belt object with nitrogen geysers.' },
+                'Proteus': { diameter: '420 km', orbit: '117,647 km from Neptune', info: 'One of the darkest objects in the solar system, reflecting only 6% of sunlight.' }
+            };
+
+            const info = moonInfo[moonName] || { diameter: 'Unknown', orbit: 'Unknown', info: 'A moon of ' + planetName };
+
+            content.innerHTML = `
+                <div class="planet-stat">Diameter: ${info.diameter}</div>
+                <div class="planet-stat">Orbital Distance: ${info.orbit}</div>
+                <div class="planet-news">${info.info}</div>
+                <div class="planet-news" style="margin-top: 15px;">
+                    <strong>Recent News:</strong>
+                    <div id="planet-news-items" style="margin-top: 8px; font-size: 11px;">
+                        Loading latest news about ${moonName}...
+                    </div>
+                </div>
+                <div id="nasa-image-container" style="margin-top: 15px;">
+                    <strong>Recent Images:</strong>
+                    <div id="nasa-image-content" style="margin-top: 8px; overflow-x: auto; overflow-y: hidden; white-space: nowrap; -webkit-overflow-scrolling: touch;">
+                        Loading images...
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'block';
+
+            // Fetch images from multiple sources
+            let allImages = [];
+            let loadedSources = 0;
+            const totalSources = 2;
+            
+            function renderImages() {
+                const imageContainer = document.getElementById('nasa-image-content');
+                if (allImages.length > 0) {
+                    imageContainer.innerHTML = allImages.map(img => `
+                        <div style="display: inline-block; margin-right: 10px; vertical-align: top; width: 200px;">
+                            <img src="${img.url}" alt="${img.title}" style="width: 200px; height: 150px; object-fit: cover; border-radius: 4px; margin-bottom: 6px; cursor: pointer;" onclick="window.open('${img.link || img.url}', '_blank')">
+                            <div style="font-size: 9px; opacity: 0.9; white-space: normal; line-height: 1.3; max-height: 35px; overflow: hidden;">${img.title}</div>
+                            <div style="font-size: 8px; opacity: 0.6; margin-top: 2px;">${img.source} • ${img.date}</div>
+                        </div>
+                    `).join('');
+                } else if (loadedSources >= totalSources) {
+                    imageContainer.innerHTML = `<div style="opacity: 0.7; font-size: 11px;">No images available for ${moonName}.</div>`;
+                }
+            }
+            
+            // Source 1: NASA Images API
+            fetch(`https://images-api.nasa.gov/search?q=${moonName} ${planetName}&media_type=image&year_start=2010`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.collection && data.collection.items) {
+                        data.collection.items.slice(0, 10).forEach(item => {
+                            if (item.links && item.links[0]) {
+                                allImages.push({
+                                    url: item.links[0].href,
+                                    title: item.data[0].title || 'NASA Image',
+                                    date: item.data[0].date_created ? new Date(item.data[0].date_created).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '',
+                                    source: 'NASA',
+                                    link: item.data[0].nasa_id ? `https://images.nasa.gov/details/${item.data[0].nasa_id}` : null
+                                });
+                            }
+                        });
+                    }
+                })
+                .catch(() => {})
+                .finally(() => {
+                    loadedSources++;
+                    renderImages();
+                });
+            
+            // Source 2: Spaceflight News API
+            fetch(`https://api.spaceflightnewsapi.net/v4/articles/?search=${moonName}&limit=10`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.results) {
+                        data.results.forEach(article => {
+                            if (article.image_url) {
+                                allImages.push({
+                                    url: article.image_url,
+                                    title: article.title.substring(0, 60) + (article.title.length > 60 ? '...' : ''),
+                                    date: new Date(article.published_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                                    source: article.news_site,
+                                    link: article.url
+                                });
+                            }
+                        });
+                    }
+                })
+                .catch(() => {})
+                .finally(() => {
+                    loadedSources++;
+                    renderImages();
+                });
+
+            // Fetch news about the moon
+            fetch(`https://api.spaceflightnewsapi.net/v4/articles/?search=${moonName} ${planetName}&limit=3`)
+                .then(response => response.json())
+                .then(data => {
+                    const newsContainer = document.getElementById('planet-news-items');
+                    if (data.results && data.results.length > 0) {
+                        newsContainer.innerHTML = data.results.map(article => `
+                            <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 68, 68, 0.1);">
+                                <a href="${article.url}" target="_blank" style="color: #ff6666; text-decoration: none;">
+                                    ${article.title}
+                                </a>
+                                <div style="font-size: 9px; opacity: 0.7; margin-top: 3px;">
+                                    ${new Date(article.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        newsContainer.innerHTML = `<div style="opacity: 0.7;">No recent news articles found for ${moonName}.</div>`;
+                    }
+                })
+                .catch(() => {
+                    const newsContainer = document.getElementById('planet-news-items');
+                    newsContainer.innerHTML = `<div style="opacity: 0.7;">Unable to load news at this time.</div>`;
+                });
+        }
+
+        function showPlanetInfo(body) {
+            const modal = document.getElementById('planet-info-modal');
+            const title = document.getElementById('modal-title');
+            const content = document.getElementById('modal-content');
+            
+            // Set current panel data for auto-refresh
+            currentPanelData = {
+                type: 'planet',
+                body: body,
+                name: body.name
+            };
+            startInfoPanelRefresh();
+
+            title.textContent = body.name;
+
+            const planetInfo = {
+                'Sol': { 
+                    distance: '0 AU', 
+                    diameter: '1,391,000 km',
+                    info: 'Sol is the star at the center of our Solar System. It accounts for about 99.86% of the total mass of the Solar System.',
+                    searchTerm: 'sun solar activity'
+                },
+                'Mercury': { 
+                    distance: '0.39 AU', 
+                    diameter: '4,879 km',
+                    info: 'Mercury is the smallest planet and closest to Sol. Its surface temperature varies more than any other planet.',
+                    searchTerm: 'mercury planet news'
+                },
+                'Venus': { 
+                    distance: '0.72 AU', 
+                    diameter: '12,104 km',
+                    info: 'Venus is the hottest planet in our solar system with surface temperatures of 462°C, hot enough to melt lead.',
+                    searchTerm: 'venus planet'
+                },
+                'Terra': { 
+                    distance: '1.00 AU', 
+                    diameter: '12,742 km',
+                    info: 'Terra (Earth) is the only known planet to harbor life. About 71% of its surface is covered by water.',
+                    searchTerm: 'earth space news'
+                },
+                'Mars': { 
+                    distance: '1.52 AU', 
+                    diameter: '6,779 km',
+                    info: 'Mars is known as the Red Planet. NASA\'s Perseverance rover is currently exploring its surface.',
+                    searchTerm: 'mars rover perseverance'
+                },
+                'Jupiter': { 
+                    distance: '5.20 AU', 
+                    diameter: '139,820 km',
+                    info: 'Jupiter is the largest planet in our solar system. Its Great Red Spot is a storm larger than Earth.',
+                    searchTerm: 'jupiter planet'
+                },
+                'Saturn': { 
+                    distance: '9.54 AU', 
+                    diameter: '116,460 km',
+                    info: 'Saturn is famous for its extensive ring system made of ice and rock particles.',
+                    searchTerm: 'saturn rings'
+                },
+                'Uranus': { 
+                    distance: '19.19 AU', 
+                    diameter: '50,724 km',
+                    info: 'Uranus rotates on its side, making it unique among planets. Its atmosphere contains methane giving it a blue-green color.',
+                    searchTerm: 'uranus planet'
+                },
+                'Neptune': { 
+                    distance: '30.07 AU', 
+                    diameter: '49,244 km',
+                    info: 'Neptune is the windiest planet with winds reaching 2,100 km/h. It was the first planet found through mathematical predictions.',
+                    searchTerm: 'neptune planet'
+                },
+                // Dwarf Planets
+                'Pluto': {
+                    distance: '39.5 AU',
+                    diameter: '2,376 km',
+                    info: 'Once considered the ninth planet, Pluto is now classified as a dwarf planet. It has a heart-shaped glacier and five known moons.',
+                    searchTerm: 'pluto new horizons'
+                },
+                'Ceres': {
+                    distance: '2.77 AU',
+                    diameter: '939 km',
+                    info: 'The largest object in the asteroid belt. Dawn spacecraft discovered bright spots that are salt deposits from subsurface briny water.',
+                    searchTerm: 'ceres dawn mission'
+                },
+                'Eris': {
+                    distance: '96 AU',
+                    diameter: '2,326 km',
+                    info: 'One of the largest dwarf planets. Its discovery led to Pluto\'s reclassification. Named after the Greek goddess of discord.',
+                    searchTerm: 'eris dwarf planet'
+                },
+                'Makemake': {
+                    distance: '45.8 AU',
+                    diameter: '1,430 km',
+                    info: 'A dwarf planet in the Kuiper Belt. Named after the creator god in Rapa Nui mythology.',
+                    searchTerm: 'makemake kuiper belt'
+                },
+                'Haumea': {
+                    distance: '43.3 AU',
+                    diameter: '1,632 km',
+                    info: 'An elongated dwarf planet that spins incredibly fast (once every 4 hours) and has a ring system.',
+                    searchTerm: 'haumea dwarf planet'
+                },
+                // Deep Space Probes
+                'Voyager 1': {
+                    distance: '~159 AU',
+                    diameter: 'Spacecraft',
+                    info: 'Launched in 1977, Voyager 1 is the most distant human-made object. It entered interstellar space in 2012 and continues transmitting data.',
+                    searchTerm: 'voyager 1 interstellar'
+                },
+                'Voyager 2': {
+                    distance: '~132 AU',
+                    diameter: 'Spacecraft',
+                    info: 'The only spacecraft to visit all four outer planets. Entered interstellar space in 2018. Still communicating with Earth.',
+                    searchTerm: 'voyager 2 neptune uranus'
+                },
+                'New Horizons': {
+                    distance: '~58 AU',
+                    diameter: 'Spacecraft',
+                    info: 'Performed the first flyby of Pluto in 2015, then visited Arrokoth in the Kuiper Belt. Currently exploring the outer solar system.',
+                    searchTerm: 'new horizons pluto'
+                },
+                'Pioneer 10': {
+                    distance: '~130 AU',
+                    diameter: 'Spacecraft',
+                    info: 'First spacecraft to travel through the asteroid belt and make direct observations of Jupiter. Last contact was in 2003.',
+                    searchTerm: 'pioneer 10 jupiter'
+                }
+            };
+
+            const info = planetInfo[body.name] || { distance: 'Unknown', diameter: 'Unknown', info: 'Information not available', searchTerm: 'space' };
+
+            const currentDate = new Date().toLocaleDateString('en-US', { 
+                month: 'long', 
+                day: 'numeric', 
+                year: 'numeric' 
+            });
+
+            content.innerHTML = `
+                <div class="planet-stat">Distance from Sun: ${info.distance}</div>
+                <div class="planet-stat">Diameter: ${info.diameter}</div>
+                <div class="planet-news">${info.info}</div>
+                <div class="planet-news" style="margin-top: 15px;">
+                    <strong>Recent News:</strong>
+                    <div id="planet-news-items" style="margin-top: 8px; font-size: 11px;">
+                        Loading latest news about ${body.name}...
+                    </div>
+                </div>
+                <div id="nasa-image-container" style="margin-top: 15px;">
+                    <strong>Recent Images:</strong>
+                    <div id="nasa-image-content" style="margin-top: 8px; overflow-x: auto; overflow-y: hidden; white-space: nowrap; -webkit-overflow-scrolling: touch;">
+                        Loading images...
+                    </div>
+                </div>
+                <div class="planet-news" style="margin-top: 15px; opacity: 0.8; font-size: 11px;">
+                    ℹ️ Position calculated for ${currentDate} using simplified orbital mechanics. For precise ephemeris data, see <a href="https://eyes.nasa.gov/apps/solar-system/" target="_blank" style="color: #ff6666;">NASA's Solar System Eyes</a>.
+                </div>
+            `;
+
+            modal.style.display = 'block';
+
+            // Fetch images from multiple sources
+            let allImages = [];
+            let loadedSources = 0;
+            const totalSources = 3;
+            
+            function renderImages() {
+                const imageContainer = document.getElementById('nasa-image-content');
+                if (allImages.length > 0) {
+                    imageContainer.innerHTML = allImages.map(img => `
+                        <div style="display: inline-block; margin-right: 10px; vertical-align: top; width: 200px;">
+                            <img src="${img.url}" alt="${img.title}" style="width: 200px; height: 150px; object-fit: cover; border-radius: 4px; margin-bottom: 6px; cursor: pointer;" onclick="window.open('${img.link || img.url}', '_blank')">
+                            <div style="font-size: 9px; opacity: 0.9; white-space: normal; line-height: 1.3; max-height: 35px; overflow: hidden;">${img.title}</div>
+                            <div style="font-size: 8px; opacity: 0.6; margin-top: 2px;">${img.source} • ${img.date}</div>
+                        </div>
+                    `).join('');
+                } else if (loadedSources >= totalSources) {
+                    imageContainer.innerHTML = `<div style="opacity: 0.7; font-size: 11px;">No images available for ${body.name}.</div>`;
+                }
+            }
+            
+            // Source 1: NASA Images API
+            fetch(`https://images-api.nasa.gov/search?q=${info.searchTerm}&media_type=image&year_start=2015`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.collection && data.collection.items) {
+                        data.collection.items.slice(0, 10).forEach(item => {
+                            if (item.links && item.links[0]) {
+                                allImages.push({
+                                    url: item.links[0].href,
+                                    title: item.data[0].title || 'NASA Image',
+                                    date: item.data[0].date_created ? new Date(item.data[0].date_created).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '',
+                                    source: 'NASA',
+                                    link: item.data[0].nasa_id ? `https://images.nasa.gov/details/${item.data[0].nasa_id}` : null
+                                });
+                            }
+                        });
+                    }
+                })
+                .catch(() => {})
+                .finally(() => {
+                    loadedSources++;
+                    renderImages();
+                });
+            
+            // Source 2: Spaceflight News API (articles with images)
+            fetch(`https://api.spaceflightnewsapi.net/v4/articles/?search=${info.searchTerm}&limit=10`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.results) {
+                        data.results.forEach(article => {
+                            if (article.image_url) {
+                                allImages.push({
+                                    url: article.image_url,
+                                    title: article.title.substring(0, 60) + (article.title.length > 60 ? '...' : ''),
+                                    date: new Date(article.published_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                                    source: article.news_site,
+                                    link: article.url
+                                });
+                            }
+                        });
+                    }
+                })
+                .catch(() => {})
+                .finally(() => {
+                    loadedSources++;
+                    renderImages();
+                });
+            
+            // Source 3: Wikimedia Commons (fallback)
+            const wikiSearch = body.name === 'Terra' ? 'Earth planet space' : 
+                              body.name === 'Sol' ? 'Sun solar' : 
+                              `${body.name} planet`;
+            fetch(`https://en.wikipedia.org/api/rest_v1/page/media-list/${wikiSearch.replace(/ /g, '_')}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.items) {
+                        data.items.slice(0, 5).forEach(item => {
+                            if (item.type === 'image' && item.srcset && item.srcset[0]) {
+                                allImages.push({
+                                    url: item.srcset[0].src,
+                                    title: item.title || body.name,
+                                    date: '',
+                                    source: 'Wiki',
+                                    link: `https://commons.wikimedia.org/wiki/File:${item.title}`
+                                });
+                            }
+                        });
+                    }
+                })
+                .catch(() => {})
+                .finally(() => {
+                    loadedSources++;
+                    renderImages();
+                });
+
+            // Fetch recent news articles using NewsAPI (you'd need an API key for production)
+            // For demo, using spaceflight news API
+            fetch(`https://api.spaceflightnewsapi.net/v4/articles/?search=${info.searchTerm}&limit=3`)
+                .then(response => response.json())
+                .then(data => {
+                    const newsContainer = document.getElementById('planet-news-items');
+                    if (data.results && data.results.length > 0) {
+                        newsContainer.innerHTML = data.results.map(article => `
+                            <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255, 68, 68, 0.1);">
+                                <a href="${article.url}" target="_blank" style="color: #ff6666; text-decoration: none;">
+                                    ${article.title}
+                                </a>
+                                <div style="font-size: 9px; opacity: 0.7; margin-top: 3px;">
+                                    ${new Date(article.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        newsContainer.innerHTML = `<div style="opacity: 0.7;">No recent news articles found for ${body.name}.</div>`;
+                    }
+                })
+                .catch(() => {
+                    const newsContainer = document.getElementById('planet-news-items');
+                    newsContainer.innerHTML = `<div style="opacity: 0.7;">Unable to load news at this time. Check your internet connection.</div>`;
+                });
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('planet-info-modal');
+            modal.style.display = 'none';
+            
+            // Clear refresh interval when modal closes
+            if (window.infoPanelRefreshInterval) {
+                clearInterval(window.infoPanelRefreshInterval);
+                window.infoPanelRefreshInterval = null;
+            }
+        }
+        
+        // Store current panel info for auto-refresh
+        let currentPanelData = null;
+        
+        // Auto-refresh function for info panels
+        function refreshCurrentInfoPanel() {
+            if (!currentPanelData) return;
+            
+            console.log('Auto-refreshing info panel:', currentPanelData.type, currentPanelData.name);
+            
+            if (currentPanelData.type === 'planet') {
+                showPlanetInfo(currentPanelData.body);
+            } else if (currentPanelData.type === 'moon') {
+                showMoonInfo(currentPanelData.moonName, currentPanelData.planetName);
+            } else if (currentPanelData.type === 'spacecraft') {
+                showSpacecraftInfo(currentPanelData.craft);
+            }
+        }
+        
+        // Start auto-refresh timer (15 minutes)
+        function startInfoPanelRefresh() {
+            // Clear existing interval
+            if (window.infoPanelRefreshInterval) {
+                clearInterval(window.infoPanelRefreshInterval);
+            }
+            
+            // Refresh every 15 minutes (900000 ms)
+            window.infoPanelRefreshInterval = setInterval(refreshCurrentInfoPanel, 900000);
+            console.log('Info panel auto-refresh started (every 15 minutes)');
+        }
+
+        function resetView() {
+            zoomLevel = 1.0;
+            panX = 0;
+            panY = 0;
+            showZoomIndicator();
+        }
+        
+        function togglePanel(containerId) {
+            const container = document.getElementById(containerId);
+            
+            // Check computed style, not just inline style
+            const currentDisplay = window.getComputedStyle(container).display;
+            
+            if (currentDisplay === 'none') {
+                container.style.display = 'block';
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // News feed with clickable items and infinite scroll
+        let newsOffset = 0;
+        let loadingNews = false;
+
+        function updateNewsFeed(append = false) {
+            if (loadingNews) return;
+            loadingNews = true;
+            
+            const container = document.getElementById('news-container');
+            
+            // Fetch from Spaceflight News API
+            fetch(`https://api.spaceflightnewsapi.net/v4/articles/?limit=10&offset=${newsOffset}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.results && data.results.length > 0) {
+                        const newsHTML = data.results.map(article => {
+                            const publishedDate = new Date(article.published_at);
+                            const now = new Date();
+                            const diffTime = Math.abs(now - publishedDate);
+                            const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+                            const diffDays = Math.floor(diffHours / 24);
+                            
+                            let timeAgo;
+                            if (diffDays > 0) {
+                                timeAgo = `${diffDays}d ago`;
+                            } else if (diffHours > 0) {
+                                timeAgo = `${diffHours}h ago`;
+                            } else {
+                                timeAgo = 'Just now';
+                            }
+                            
+                            return `
+                                <div class="news-item" onclick="window.open('${article.url}', '_blank')" title="Click to read full article">
+                                    ${article.title}
+                                    <div class="news-timestamp">${timeAgo} • ${article.news_site}</div>
+                                </div>
+                            `;
+                        }).join('');
+                        
+                        if (append) {
+                            container.innerHTML += newsHTML;
+                        } else {
+                            container.innerHTML = newsHTML;
+                        }
+                        
+                        newsOffset += 10;
+                    } else {
+                        if (!append) showFallbackNews();
+                    }
+                    loadingNews = false;
+                })
+                .catch(() => {
+                    if (!append) showFallbackNews();
+                    loadingNews = false;
+                });
+        }
+
+        // Infinite scroll for news feed
+        document.getElementById('news-feed').addEventListener('scroll', function() {
+            if (this.scrollTop + this.clientHeight >= this.scrollHeight - 50) {
+                updateNewsFeed(true);
+            }
+        });
+
+        function showFallbackNews() {
+            const container = document.getElementById('news-container');
+            const newsItems = [
+                { text: "NASA's James Webb Space Telescope discovers new exoplanet candidates in habitable zones", time: "2h ago", url: "https://www.nasa.gov" },
+                { text: "SpaceX prepares Starship for next orbital test flight from Boca Chica facility", time: "4h ago", url: "https://www.spacex.com" },
+                { text: "International Space Station marks 25 years of continuous human presence in orbit", time: "6h ago", url: "https://www.nasa.gov" },
+                { text: "Artemis III mission timeline updated - lunar landing scheduled for 2026", time: "8h ago", url: "https://www.nasa.gov" },
+                { text: "Europa Clipper mission: New research suggests subsurface ocean conditions may support life", time: "12h ago", url: "https://www.jpl.nasa.gov" },
+                { text: "China's Tiangong space station welcomes new three-person crew for six-month mission", time: "14h ago", url: "https://www.space.com" },
+                { text: "Hubble telescope captures unprecedented detail of NGC 6302 butterfly nebula", time: "18h ago", url: "https://hubblesite.org" },
+                { text: "Mars Ingenuity helicopter completes 70th flight, far exceeding original mission goals", time: "1d ago", url: "https://www.jpl.nasa.gov" }
+            ];
+            
+            container.innerHTML = newsItems.map(item => 
+                `<div class="news-item" onclick="window.open('${item.url}', '_blank')" title="Click to read more">${item.text}<div class="news-timestamp">${item.time}</div></div>`
+            ).join('');
+        }
+
+        updateNewsFeed();
+        
+        // Refresh news every 5 minutes
+        setInterval(updateNewsFeed, 300000);
+
+        // Launch Calendar with multiple sources
+        let launchOffset = 0;
+        let loadingLaunches = false;
+
+        function updateLaunchCalendar(append = false) {
+            if (loadingLaunches) return;
+            loadingLaunches = true;
+            
+            const container = document.getElementById('launch-container');
+            
+            // Try Launch Library 2 first (most comprehensive, includes Artemis)
+            fetch(`https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=10&offset=${launchOffset}&mode=detailed`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.results && data.results.length > 0) {
+                        const launchHTML = data.results.map(launch => {
+                            const date = new Date(launch.net);
+                            const dateStr = date.toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric',
+                                year: 'numeric'
+                            });
+                            const timeStr = date.toLocaleTimeString('en-US', { 
+                                hour: '2-digit', 
+                                minute: '2-digit'
+                            });
+                            
+                            const provider = launch.launch_service_provider?.name || 'Unknown';
+                            const statusName = launch.status?.name || 'TBD';
+                            const missionType = launch.mission?.type || '';
+                            
+                            let statusClass = 'status-tbd';
+                            if (statusName.includes('Go') || statusName.includes('Success')) statusClass = 'status-go';
+                            if (statusName.includes('Hold') || statusName.includes('Failure')) statusClass = 'status-hold';
+                            
+                            // Try to get the best URL - prefer video URLs or slug-based URLs
+                            let url = '#';
+                            if (launch.vidURLs && launch.vidURLs.length > 0) {
+                                url = launch.vidURLs[0].url;
+                            } else if (launch.slug) {
+                                url = `https://www.rocketlaunch.live/launch/${launch.slug}`;
+                            } else if (launch.url && !launch.url.includes('api.')) {
+                                url = launch.url;
+                            }
+                            
+                            // Highlight Artemis missions
+                            const isArtemis = launch.name.toLowerCase().includes('artemis');
+                            const nameStyle = isArtemis ? 'color: #FFD700; font-weight: bold;' : '';
+                            
+                            return `
+                                <div class="launch-item" onclick="window.open('${url}', '_blank')" title="Click for more details">
+                                    <div class="launch-date">${dateStr}</div>
+                                    <div class="launch-mission" style="${nameStyle}">${launch.name}</div>
+                                    <div class="launch-provider">${provider}</div>
+                                    ${missionType ? `<div style="font-size: 9px; opacity: 0.6; margin-top: 2px;">${missionType}</div>` : ''}
+                                    <div class="launch-status ${statusClass}">${statusName}</div>
+                                    <div style="font-size: 10px; margin-top: 5px; opacity: 0.7;">${timeStr}</div>
+                                </div>
+                            `;
+                        }).join('');
+                        
+                        if (append) {
+                            container.innerHTML += launchHTML;
+                        } else {
+                            container.innerHTML = launchHTML;
+                        }
+                        
+                        launchOffset += 10;
+                    } else {
+                        if (!append) showFallbackLaunches();
+                    }
+                    loadingLaunches = false;
+                })
+                .catch(() => {
+                    if (!append) showFallbackLaunches();
+                    loadingLaunches = false;
+                });
+        }
+
+        // Infinite scroll for launch calendar
+        document.getElementById('launch-calendar').addEventListener('scroll', function() {
+            if (this.scrollTop + this.clientHeight >= this.scrollHeight - 50) {
+                updateLaunchCalendar(true);
+            }
+        });
+
+        function showFallbackLaunches() {
+            const container = document.getElementById('launch-container');
+            const fallbackLaunches = [
+                { date: 'Feb 15, 2026', mission: 'Starship Flight Test', provider: 'SpaceX', status: 'TBD', statusClass: 'status-tbd', url: 'https://www.spacex.com' },
+                { date: 'Feb 18, 2026', mission: 'New Glenn Maiden Flight', provider: 'Blue Origin', status: 'GO', statusClass: 'status-go', url: 'https://www.blueorigin.com' },
+                { date: 'Feb 22, 2026', mission: 'Crew-10 to ISS', provider: 'SpaceX', status: 'GO', statusClass: 'status-go', url: 'https://www.nasa.gov' },
+                { date: 'Mar 01, 2026', mission: 'Electron Launch', provider: 'Rocket Lab', status: 'TBD', statusClass: 'status-tbd', url: 'https://www.rocketlabusa.com' },
+                { date: 'Mar 05, 2026', mission: 'Alpha Flight', provider: 'Firefly Aerospace', status: 'TBD', statusClass: 'status-tbd', url: 'https://firefly.com' },
+                { date: 'Mar 18, 2026', mission: 'Starlink Group', provider: 'SpaceX', status: 'TBD', statusClass: 'status-tbd', url: 'https://www.spacex.com' }
+            ];
+
+            container.innerHTML = fallbackLaunches.map(launch => `
+                <div class="launch-item" onclick="window.open('${launch.url}', '_blank')" title="Click for more details">
+                    <div class="launch-date">${launch.date}</div>
+                    <div class="launch-mission">${launch.mission}</div>
+                    <div class="launch-provider">${launch.provider}</div>
+                    <div class="launch-status ${launch.statusClass}">${launch.status}</div>
+                </div>
+            `).join('');
+        }
+
+        updateLaunchCalendar();
+        
+        // Refresh launches every 30 minutes
+        setInterval(updateLaunchCalendar, 1800000);
+    </script>
+</body>
+</html>
