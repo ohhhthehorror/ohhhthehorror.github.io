@@ -614,6 +614,127 @@
             font-size: 24px;
             text-align: center;
         }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .panel {
+                padding: 10px;
+                font-size: 11px;
+                max-width: 90%;
+            }
+            
+            .top-left {
+                top: 10px;
+                left: 10px;
+            }
+            
+            .top-right {
+                top: 10px;
+                right: 10px;
+            }
+            
+            #time-display {
+                font-size: 18px;
+            }
+            
+            #date-display {
+                font-size: 9px;
+            }
+            
+            #utc-display {
+                font-size: 9px;
+            }
+            
+            .progress-item {
+                margin: 3px 0;
+            }
+            
+            .progress-label {
+                font-size: 8px;
+            }
+            
+            .progress-bar-bg {
+                height: 3px;
+            }
+            
+            #location-display {
+                font-size: 11px;
+            }
+            
+            #moon-phase-canvas {
+                width: 25px;
+                height: 25px;
+            }
+            
+            #moon-phase-text {
+                font-size: 8px;
+            }
+            
+            #launch-calendar {
+                font-size: 10px;
+                padding: 10px;
+                bottom: 10px;
+                left: 10px;
+                max-width: 90%;
+            }
+            
+            #news-feed {
+                font-size: 10px;
+                padding: 10px;
+                bottom: 10px;
+                right: 10px;
+                max-width: 90%;
+            }
+            
+            /* Hide zoom indicator text on mobile */
+            #zoom-indicator {
+                font-size: 16px;
+            }
+            
+            /* Make modal more mobile friendly */
+            #planet-info-modal {
+                width: 95%;
+                max-height: 90vh;
+                padding: 15px;
+            }
+            
+            #planet-info-modal h2 {
+                font-size: 16px;
+            }
+            
+            .planet-stat {
+                font-size: 11px;
+            }
+            
+            .planet-news {
+                font-size: 10px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .panel {
+                padding: 8px;
+                font-size: 10px;
+            }
+            
+            #time-display {
+                font-size: 16px;
+            }
+            
+            #date-display {
+                font-size: 8px;
+            }
+            
+            .progress-label {
+                font-size: 7px;
+            }
+            
+            #launch-calendar,
+            #news-feed {
+                font-size: 9px;
+                padding: 8px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1038,8 +1159,13 @@
         // Moon Phase Calculation and Display
         function calculateMoonPhase() {
             // Use wttr.in API which provides accurate moon phase data AND location
-            fetch('https://wttr.in/?format=j1')
+            // Add timeout to prevent hanging
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            
+            fetch('https://wttr.in/?format=j1', { signal: controller.signal })
                 .then(response => {
+                    clearTimeout(timeoutId);
                     if (!response.ok) throw new Error('API returned ' + response.status);
                     return response.json();
                 })
@@ -2172,6 +2298,79 @@
             solarCanvas.style.cursor = 'grab';
             showLabels = false; // Hide labels when mouse leaves
         });
+        
+        // Touch support for mobile
+        let touchStartDistance = 0;
+        let touchStartZoom = 1.0;
+        let isTouching = false;
+        
+        solarCanvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isTouching = true;
+            
+            if (e.touches.length === 2) {
+                // Two finger pinch to zoom
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                touchStartDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+                touchStartZoom = zoomLevel;
+            } else if (e.touches.length === 1) {
+                // Single finger pan
+                const touch = e.touches[0];
+                const rect = solarCanvas.getBoundingClientRect();
+                dragStartX = touch.clientX - rect.left;
+                dragStartY = touch.clientY - rect.top;
+                dragStartPanX = panX;
+                dragStartPanY = panY;
+            }
+            
+            resetInactivityTimer();
+        }, { passive: false });
+        
+        solarCanvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            
+            if (e.touches.length === 2) {
+                // Two finger pinch to zoom
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const currentDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+                
+                const scale = currentDistance / touchStartDistance;
+                zoomLevel = Math.max(0.3, Math.min(30.0, touchStartZoom * scale));
+                
+                showZoomIndicator();
+            } else if (e.touches.length === 1 && isTouching) {
+                // Single finger pan
+                const touch = e.touches[0];
+                const rect = solarCanvas.getBoundingClientRect();
+                const currentX = touch.clientX - rect.left;
+                const currentY = touch.clientY - rect.top;
+                
+                panX = dragStartPanX + (currentX - dragStartX);
+                panY = dragStartPanY + (currentY - dragStartY);
+                
+                // Auto-center when zoomed out beyond 80%
+                if (zoomLevel <= 0.8) {
+                    panX = 0;
+                    panY = 0;
+                }
+            }
+            
+            resetInactivityTimer();
+        }, { passive: false });
+        
+        solarCanvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            isTouching = false;
+            touchStartDistance = 0;
+        }, { passive: false });
         
         // Check if we should hide labels due to inactivity
         setInterval(() => {
