@@ -1161,7 +1161,7 @@
             // Use wttr.in API which provides accurate moon phase data AND location
             // Add timeout to prevent hanging
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
             
             fetch('https://wttr.in/?format=j1', { signal: controller.signal })
                 .then(response => {
@@ -1250,13 +1250,29 @@
                 })
                 .catch(error => {
                     console.error('Moon phase API error:', error);
-                    console.log('Using fallback calculation...');
+                    console.log('Using fallback calculation and trying alternate location API...');
                     
-                    // Fallback location display
-                    document.getElementById('location-display').innerHTML = `
-                        <div style="font-size: 14px; margin-bottom: 5px;">Location unavailable</div>
-                        <div style="font-size: 11px; opacity: 0.7;">Using default times</div>
-                    `;
+                    // Try alternate location API (ipapi.co is more reliable)
+                    fetch('https://ipapi.co/json/')
+                        .then(response => response.json())
+                        .then(data => {
+                            const city = data.city || 'Unknown';
+                            const region = data.region || '';
+                            const lat = data.latitude?.toFixed(4) || '';
+                            const lon = data.longitude?.toFixed(4) || '';
+                            
+                            document.getElementById('location-display').innerHTML = `
+                                <div style="font-size: 14px; margin-bottom: 5px;">${city}${region ? ', ' + region : ''}</div>
+                                <div style="font-size: 11px; opacity: 0.7;">${lat}°, ${lon}°</div>
+                            `;
+                        })
+                        .catch(() => {
+                            // Complete fallback if both APIs fail
+                            document.getElementById('location-display').innerHTML = `
+                                <div style="font-size: 14px; margin-bottom: 5px;">Location unavailable</div>
+                                <div style="font-size: 11px; opacity: 0.7;">Using default times</div>
+                            `;
+                        });
                     
                     // Fallback to local calculation
                     const now = new Date();
@@ -2397,7 +2413,7 @@
                 if (!terra || !terra.spacecraft) return;
 
                 // Fetch current astronauts in space
-                const astrosResponse = await fetch('http://api.open-notify.org/astros.json');
+                const astrosResponse = await fetch('https://api.open-notify.org/astros.json');
                 const astrosData = await astrosResponse.json();
                 
                 if (astrosData.people) {
@@ -3264,32 +3280,10 @@
                     renderImages();
                 });
             
-            // Source 3: Wikimedia Commons (fallback)
-            const wikiSearch = body.name === 'Terra' ? 'Earth planet space' : 
-                              body.name === 'Sol' ? 'Sun solar' : 
-                              `${body.name} planet`;
-            fetch(`https://en.wikipedia.org/api/rest_v1/page/media-list/${wikiSearch.replace(/ /g, '_')}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.items) {
-                        data.items.slice(0, 5).forEach(item => {
-                            if (item.type === 'image' && item.srcset && item.srcset[0]) {
-                                allImages.push({
-                                    url: item.srcset[0].src,
-                                    title: item.title || body.name,
-                                    date: '',
-                                    source: 'Wiki',
-                                    link: `https://commons.wikimedia.org/wiki/File:${item.title}`
-                                });
-                            }
-                        });
-                    }
-                })
-                .catch(() => {})
-                .finally(() => {
-                    loadedSources++;
-                    renderImages();
-                });
+            // Source 3: Wikimedia Commons disabled (API endpoint deprecated)
+            // We have NASA and Spaceflight News which provide plenty of images
+            loadedSources++; // Increment to account for skipped source
+            renderImages();
 
             // Fetch recent news articles using NewsAPI (you'd need an API key for production)
             // For demo, using spaceflight news API
